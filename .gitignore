@@ -1,0 +1,57 @@
+# IDE
+.vs/
+.vscode/
+.idea/
+
+# Environment & secrets
+.env
+.env.local
+.env.*.local
+*.pem
+*.key
+*.p12
+*.pfx
+*.cert
+*.crt
+secrets/
+
+# Node.js
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.npm
+dist/
+build/
+
+# Flutter / Dart
+mobile_frontend/build/
+mobile_frontend/.dart_tool/
+mobile_frontend/.flutter-plugins
+mobile_frontend/.flutter-plugins-dependencies
+mobile_frontend/.pub-cache/
+mobile_frontend/.pub/
+mobile_frontend/ios/Pods/
+mobile_frontend/ios/.symlinks/
+mobile_frontend/android/.gradle/
+mobile_frontend/android/app/debug/
+mobile_frontend/android/app/release/
+mobile_frontend/android/app/profile/
+mobile_frontend/android/local.properties
+*.g.dart
+*.freezed.dart
+
+# Google services (Firebase / Android)
+google-services.json
+GoogleService-Info.plist
+
+# Docker
+.dockerignore
+
+# Logs
+logs/
+*.log
+
+# OS
+.DS_Store
+Thumbs.db
