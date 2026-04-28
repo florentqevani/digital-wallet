@@ -1,0 +1,29 @@
+{
+    "name": "user-service",
+    "version": "1.0.0",
+    "description": "User management microservice for GRPC-based application",
+    "main": "src/server.js",
+    "scripts": {
+        "start": "node src/server.js",
+        "dev": "nodemon src/server.js"
+    },
+    "keywords": [
+        "grpc",
+        "user",
+        "microservice"
+    ],
+    "author": "Your Name",
+    "license": "MIT",
+    "dependencies": {
+        "@myapp/proto-contracts": "file:../proto-contracts",
+        "@grpc/grpc-js": "^1.14.3",
+        "@grpc/proto-loader": "^0.8.0",
+        "bcrypt": "^6.0.0",
+        "dotenv": "^17.4.2",
+        "amqplib": "^0.10.4",
+        "pg": "^8.11.3"
+    },
+    "devDependencies": {
+        "nodemon": "^3.1.14"
+    }
+}

@@ -1,0 +1,170 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: grpc-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: app
+      POSTGRES_PASSWORD: secret
+      POSTGRES_DB: app_main
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./auth_service/db/init.sql:/docker-entrypoint-initdb.d/01-auth-schema.sql:ro
+      - ./log-service/db/init.sql:/docker-entrypoint-initdb.d/02-log-schema.sql:ro
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U app" ]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    ports:
+      - "5433:5432"
+
+  rabbitmq:
+    image: rabbitmq:3.13-management-alpine
+    container_name: grpc-rabbitmq
+    restart: unless-stopped
+    environment:
+      RABBITMQ_DEFAULT_USER: app
+      RABBITMQ_DEFAULT_PASS: secret
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq/mnesia
+    healthcheck:
+      test: [ "CMD", "rabbitmq-diagnostics", "ping" ]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+
+  auth-service:
+    build:
+      context: .
+      dockerfile: Dockerfile.service
+      args:
+        SERVICE_PATH: auth_service
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      PORT: 50051
+      HEALTH_PORT: 15051
+      AUTH_DB_URL: postgres://app:secret@postgres:5432/auth_db
+      JWT_SECRET: your-secret-key-change-this-in-production
+      JWT_EXPIRY: 7d
+      LOG_SERVICE_URL: log-service:50052
+      RABBITMQ_URL: amqp://app:secret@rabbitmq:5672
+    depends_on:
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    ports:
+      - "15051:15051"
+
+  log-service:
+    build:
+      context: .
+      dockerfile: Dockerfile.service
+      args:
+        SERVICE_PATH: log-service
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      PORT: 50052
+      HEALTH_PORT: 15052
+      LOG_DB_URL: postgres://app:secret@postgres:5432/log_db
+      RABBITMQ_URL: amqp://app:secret@rabbitmq:5672
+    depends_on:
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    ports:
+      - "15052:15052"
+
+  mobile-bff:
+    build:
+      context: .
+      dockerfile: Dockerfile.service
+      args:
+        SERVICE_PATH: mobile-bff
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      PORT: 3002
+      AUTH_SERVICE_URL: auth-service:50051
+      LOG_SERVICE_URL: log-service:50052
+      API_GATEWAY_URL: http://api-gateway:8080
+    depends_on:
+      - api-gateway
+    ports:
+      - "3002:3002"
+
+  web-bff:
+    build:
+      context: .
+      dockerfile: Dockerfile.service
+      args:
+        SERVICE_PATH: web-bff
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      PORT: 3004
+      AUTH_SERVICE_URL: auth-service:50051
+      LOG_SERVICE_URL: log-service:50052
+      API_GATEWAY_URL: http://api-gateway:8080
+      JWT_SECRET: your-secret-key-change-this-in-production
+    depends_on:
+      - api-gateway
+    ports:
+      - "3104:3004"
+
+  api-gateway:
+    build:
+      context: .
+      dockerfile: Dockerfile.service
+      args:
+        SERVICE_PATH: log-service/api-getaway
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      PORT: 8080
+      AUTH_SERVICE_URL: auth-service:50051
+      LOG_SERVICE_URL: log-service:50052
+      USER_SERVICE_URL: user-service:50053
+      CLIENT_SERVICE_URL: client-service:50053
+      JWT_SECRET: your-secret-key-change-this-in-production
+      RATE_LIMIT_WINDOW_MS: 900000
+      RATE_LIMIT_MAX_REQUESTS: 100
+    depends_on:
+      - auth-service
+      - log-service
+      - user-service
+    ports:
+      - "18080:8080"
+
+  user-service:
+    build:
+      context: .
+      dockerfile: Dockerfile.service
+      args:
+        SERVICE_PATH: user-service
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      PORT: 50053
+      HEALTH_PORT: 15053
+      AUTH_DB_URL: postgres://app:secret@postgres:5432/auth_db
+      LOG_SERVICE_URL: log-service:50052
+      RABBITMQ_URL: amqp://app:secret@rabbitmq:5672
+    depends_on:
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    ports:
+      - "15053:15053"
+
+volumes:
+  postgres_data:
+  rabbitmq_data:

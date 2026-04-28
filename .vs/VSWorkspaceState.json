@@ -1,0 +1,10 @@
+{
+  "ExpandedNodes": [
+    "",
+    "\\auth_service",
+    "\\auth_service\\src",
+    "\\auth_service\\src\\handlers"
+  ],
+  "SelectedNode": "\\auth_service\\src\\handlers\\register.js",
+  "PreviewInSolutionExplorer": false
+}

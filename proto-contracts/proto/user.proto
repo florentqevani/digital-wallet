@@ -1,0 +1,79 @@
+syntax = "proto3";
+package user;
+
+service UserService {
+  rpc ListUsers    (ListUsersRequest)    returns (ListUsersResponse);
+  rpc RegisterUser (RegisterUserRequest) returns (SimpleResponse);
+  rpc UpdateUser   (UpdateUserRequest)   returns (SimpleResponse);
+  rpc DeleteUser   (DeleteUserRequest)   returns (SimpleResponse);
+  rpc ListClients  (ListClientsRequest)  returns (ListClientsResponse);
+  rpc UpdateClient (UpdateClientRequest) returns (SimpleResponse);
+  rpc DeleteClient (DeleteClientRequest) returns (SimpleResponse);
+}
+
+message ListUsersRequest {}
+
+message User {
+  string id         = 1;
+  string email      = 2;
+  string name       = 3;
+  string role       = 4;
+  int64  created_at = 5;
+}
+
+message ListUsersResponse {
+  repeated User users = 1;
+}
+
+message RegisterUserRequest {
+  string email      = 1;
+  string password   = 2;
+  string name       = 3;
+  string role       = 4;
+  string created_by = 5;
+}
+
+message SimpleResponse {
+  bool   success = 1;
+  string message = 2;
+}
+
+message UpdateUserRequest {
+  string id         = 1;
+  string email      = 2;
+  string name       = 3;
+  string role       = 4;
+  string password   = 5;
+  string updated_by = 6;
+}
+
+message DeleteUserRequest {
+  string id         = 1;
+  string deleted_by = 2;
+}
+
+message ListClientsRequest {}
+
+message ClientEntry {
+  string id         = 1;
+  string email      = 2;
+  string name       = 3;
+  int64  created_at = 4;
+}
+
+message ListClientsResponse {
+  repeated ClientEntry clients = 1;
+}
+
+message UpdateClientRequest {
+  string id         = 1;
+  string email      = 2;
+  string name       = 3;
+  string password   = 4;
+  string updated_by = 5;
+}
+
+message DeleteClientRequest {
+  string id         = 1;
+  string deleted_by = 2;
+}

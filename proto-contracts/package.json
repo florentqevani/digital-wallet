@@ -1,0 +1,20 @@
+{
+    "name": "@myapp/proto-contracts",
+    "version": "1.0.0",
+    "description": "Shared gRPC proto definitions for MyApp microservices",
+    "main": "index.js",
+    "scripts": {
+        "test": "echo \"Error: no test specified\" && exit 1"
+    },
+    "keywords": [
+        "grpc",
+        "proto",
+        "microservices"
+    ],
+    "author": "Your Name",
+    "license": "MIT",
+    "files": [
+        "proto/",
+        "index.js"
+    ]
+}

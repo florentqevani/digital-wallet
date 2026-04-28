@@ -1,0 +1,29 @@
+{
+    "name": "log-service",
+    "version": "1.0.0",
+    "description": "Audit logging microservice for GRPC-based application",
+    "main": "src/server.js",
+    "scripts": {
+        "start": "node src/server.js",
+        "dev": "nodemon src/server.js"
+    },
+    "keywords": [
+        "grpc",
+        "logging",
+        "audit",
+        "microservice"
+    ],
+    "author": "Your Name",
+    "license": "MIT",
+    "dependencies": {
+        "@myapp/proto-contracts": "file:../proto-contracts",
+        "@grpc/grpc-js": "^1.14.3",
+        "@grpc/proto-loader": "^0.7.10",
+        "dotenv": "^16.3.1",
+        "amqplib": "^0.10.4",
+        "pg": "^8.11.3"
+    },
+    "devDependencies": {
+        "nodemon": "^3.0.2"
+    }
+}

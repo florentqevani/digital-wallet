@@ -1,0 +1,44 @@
+syntax = "proto3";
+package log;
+
+service LogService {
+  rpc WriteLog  (LogRequest)  returns (LogResponse);
+  rpc QueryLogs (LogQuery)    returns (LogListResponse);
+}
+
+message LogRequest {
+  string actor_id   = 1;  // user_id or client_id
+  string actor_type = 2;  // "client" | "user" | "superadmin"
+  string action     = 3;  // e.g. "LOGIN", "REGISTER", "UPDATE_PROFILE"
+  string status     = 4;  // "SUCCESS" | "ERROR"
+  string message    = 5;  // optional detail or error message
+  int64  timestamp  = 6;  // Unix ms
+}
+
+message LogResponse {
+  bool saved = 1;
+}
+
+message LogQuery {
+  string actor_type = 1;  // filter: "client" | "user" | "" (all)
+  string actor_id   = 2;  // filter by specific actor (optional)
+  int64  from       = 3;  // Unix ms range start
+  int64  to         = 4;  // Unix ms range end
+  int32  page       = 5;
+  int32  limit      = 6;
+}
+
+message LogEntry {
+  string id         = 1;
+  string actor_id   = 2;
+  string actor_type = 3;
+  string action     = 4;
+  string status     = 5;
+  string message    = 6;
+  int64  timestamp  = 7;
+}
+
+message LogListResponse {
+  repeated LogEntry logs  = 1;
+  int32             total = 2;
+}
