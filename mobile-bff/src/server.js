@@ -8,6 +8,8 @@ const config = require('./config');
 const authRoutes = require('./routes/auth');
 const logsRoutes = require('./routes/logs');
 const healthRoutes = require('./routes/health');
+const balanceRoutes = require('./routes/balance');
+const paymentsRoutes = require('./routes/payments');
 
 const app = express();
 
@@ -27,6 +29,8 @@ app.use('/health', healthRoutes);
 // API routes
 app.use('/api/auth', authRoutes);
 app.use('/api/logs', logsRoutes);
+app.use('/api/balance', balanceRoutes);
+app.use('/api/payments', paymentsRoutes);
 
 // 404 handler
 app.use((req, res) => {

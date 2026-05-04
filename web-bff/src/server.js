@@ -6,10 +6,13 @@ const config = require('./config');
 
 // Import routes
 const authRoutes = require('./routes/auth');
+const accountsRoutes = require('./routes/accounts');
 const clientsRoutes = require('./routes/clients');
 const logsRoutes = require('./routes/logs');
 const usersRoutes = require('./routes/users');
 const healthRoutes = require('./routes/health');
+const currencyRoutes = require('./routes/add-currency');
+const balanceRoutes = require('./routes/set-balance');
 
 const app = express();
 
@@ -28,9 +31,12 @@ app.use('/health', healthRoutes);
 
 // API routes
 app.use('/api/auth', authRoutes);
+app.use('/api/accounts', accountsRoutes);
 app.use('/api/clients', clientsRoutes);
 app.use('/api/logs', logsRoutes);
 app.use('/api/users', usersRoutes);
+app.use('/api/add-currency', currencyRoutes);
+app.use('/api/set-balance', balanceRoutes);
 
 // 404 handler
 app.use((req, res) => {

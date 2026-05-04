@@ -4,9 +4,10 @@ import 'package:http/http.dart' as http;
 import 'package:mobile_frontend/core/config/app_config.dart';
 
 class ApiException implements Exception {
-  ApiException(this.message);
+  ApiException(this.message, {this.statusCode});
 
   final String message;
+  final int? statusCode;
 
   @override
   String toString() => message;
@@ -56,6 +57,7 @@ class ApiClient {
     if (response.statusCode >= 400) {
       throw ApiException(
         (parsed['message'] ?? parsed['error'] ?? 'Request failed').toString(),
+        statusCode: response.statusCode,
       );
     }
 

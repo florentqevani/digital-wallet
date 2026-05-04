@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:mobile_frontend/core/theme/app_colors.dart';
 import 'package:mobile_frontend/features/auth/auth_controller.dart';
 import 'package:mobile_frontend/features/login/login_page.dart';
+import 'package:mobile_frontend/features/payment/payment_page.dart';
 import 'dart:async';
+import 'package:intl/intl.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key, required this.controller});
@@ -18,6 +20,7 @@ class _HomePageState extends State<HomePage> {
   final ScrollController _scrollController = ScrollController();
   bool _showSpinner = false;
   Timer? _spinnerTimer;
+  String? _addMoneySuccess;
 
   void _triggerFetch({bool refresh = false}) {
     widget.controller.fetchLogs(refresh: refresh);
@@ -31,6 +34,7 @@ class _HomePageState extends State<HomePage> {
   @override
   void initState() {
     super.initState();
+    widget.controller.addListener(_onControllerUpdate);
     _scrollController.addListener(_onScroll);
     if (widget.controller.recentActivity.isEmpty) {
       WidgetsBinding.instance.addPostFrameCallback(
@@ -39,8 +43,13 @@ class _HomePageState extends State<HomePage> {
     }
   }
 
+  void _onControllerUpdate() {
+    if (mounted) setState(() {});
+  }
+
   @override
   void dispose() {
+    widget.controller.removeListener(_onControllerUpdate);
     _spinnerTimer?.cancel();
     _scrollController.dispose();
     super.dispose();
@@ -51,6 +60,126 @@ class _HomePageState extends State<HomePage> {
         _scrollController.position.maxScrollExtent - 100) {
       _triggerFetch();
     }
+  }
+
+  void _showAddMoneyDialog() {
+    final amountController = TextEditingController();
+    // Dialog state is local — never touches _HomePageState fields
+    var busy = false;
+    String? dialogError;
+
+    showDialog<void>(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setDialogState) => AlertDialog(
+          title: const Text('Add Money'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                'Current balance: ${NumberFormat('#,##0.00').format(widget.controller.balance)} ${widget.controller.currency}',
+                style: Theme.of(ctx).textTheme.bodySmall,
+              ),
+              const SizedBox(height: 16),
+              TextField(
+                controller: amountController,
+                keyboardType: const TextInputType.numberWithOptions(
+                  decimal: true,
+                ),
+                decoration: const InputDecoration(
+                  labelText: 'Amount (ALL)',
+                  hintText: '0.00',
+                ),
+                autofocus: true,
+              ),
+              if (dialogError != null) ...[
+                const SizedBox(height: 8),
+                Text(
+                  dialogError!,
+                  style: const TextStyle(color: AppColors.danger, fontSize: 13),
+                ),
+              ],
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: busy ? null : () => Navigator.of(ctx).pop(),
+              child: const Text('Cancel'),
+            ),
+            FilledButton(
+              onPressed: busy
+                  ? null
+                  : () async {
+                      final raw = amountController.text.trim();
+                      final amount = double.tryParse(raw);
+                      if (amount == null || amount <= 0) {
+                        setDialogState(
+                          () => dialogError = 'Enter a valid positive amount',
+                        );
+                        return;
+                      }
+                      setDialogState(() {
+                        busy = true;
+                        dialogError = null;
+                      });
+                      // Initiate payment — returns RaiAccept form URL or null
+                      final result = await widget.controller.initiatePayment(
+                        amount,
+                      );
+                      if (!ctx.mounted) return;
+                      if (result == null) {
+                        // initiatePayment already set controller.error
+                        setDialogState(() {
+                          busy = false;
+                          dialogError =
+                              widget.controller.error ??
+                              'Could not start payment';
+                        });
+                        return;
+                      }
+                      // Close dialog, then open payment WebView
+                      Navigator.of(ctx).pop();
+                      if (!mounted) return;
+                      final paid = await Navigator.of(context).push<bool>(
+                        MaterialPageRoute(
+                          builder: (_) => PaymentPage(
+                            controller: widget.controller,
+                            paymentFormUrl: result['paymentFormUrl']!,
+                            raiOrderId: result['raiOrderId']!,
+                            amount: amount,
+                          ),
+                        ),
+                      );
+                      if (paid == true && mounted) {
+                        setState(
+                          () => _addMoneySuccess =
+                              'Deposited ${NumberFormat('#,##0.00').format(amount)} ${widget.controller.currency}',
+                        );
+                        Future.delayed(const Duration(seconds: 3), () {
+                          if (mounted) setState(() => _addMoneySuccess = null);
+                        });
+                      }
+                    },
+              child: busy
+                  ? const SizedBox(
+                      width: 16,
+                      height: 16,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color: Colors.white,
+                      ),
+                    )
+                  : const Text('Pay with Card'),
+            ),
+          ],
+        ),
+      ),
+    ).then((_) {
+      // Dispose after the dialog's element tree is fully removed
+      WidgetsBinding.instance.addPostFrameCallback(
+        (_) => amountController.dispose(),
+      );
+    });
   }
 
   @override
@@ -74,6 +203,11 @@ class _HomePageState extends State<HomePage> {
             icon: const Icon(Icons.logout),
           ),
         ],
+      ),
+      floatingActionButton: FloatingActionButton.extended(
+        onPressed: _showAddMoneyDialog,
+        icon: const Icon(Icons.add),
+        label: const Text('Add Money'),
       ),
       body: SafeArea(
         child: Padding(
@@ -110,6 +244,46 @@ class _HomePageState extends State<HomePage> {
                           ),
                         ],
                       ),
+                      const Divider(height: 20),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'Balance',
+                                style: Theme.of(context).textTheme.bodySmall,
+                              ),
+                              const SizedBox(height: 2),
+                              Text(
+                                '${NumberFormat('#,##0.00').format(controller.balance)} ${controller.currency}',
+                                style: Theme.of(context).textTheme.titleLarge
+                                    ?.copyWith(
+                                      color: AppColors.primary,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                              ),
+                            ],
+                          ),
+                          IconButton.filled(
+                            onPressed: _showAddMoneyDialog,
+                            icon: const Icon(Icons.add),
+                            tooltip: 'Add money',
+                          ),
+                        ],
+                      ),
+                      if (_addMoneySuccess != null)
+                        Padding(
+                          padding: const EdgeInsets.only(top: 6),
+                          child: Text(
+                            _addMoneySuccess!,
+                            style: const TextStyle(
+                              color: AppColors.success,
+                              fontSize: 13,
+                            ),
+                          ),
+                        ),
                     ],
                   ),
                 ),

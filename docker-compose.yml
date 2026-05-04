@@ -95,6 +95,10 @@ services:
       AUTH_SERVICE_URL: auth-service:50051
       LOG_SERVICE_URL: log-service:50052
       API_GATEWAY_URL: http://api-gateway:8080
+      RAIACCEPT_USERNAME: c1e6d982-8c78-4a20-88c2-31f7b43b50a0
+      RAIACCEPT_PASSWORD: "(XYI[0Lc<wgt}mn?$$s!qLJ7C6|h}JP.&3f!"
+      RAIACCEPT_WEBHOOK_URL: http://localhost:3002
+      RAIACCEPT_MOBILE_CALLBACK_BASE: http://mobile.callback
     depends_on:
       - api-gateway
     ports:
@@ -124,7 +128,7 @@ services:
       context: .
       dockerfile: Dockerfile.service
       args:
-        SERVICE_PATH: log-service/api-getaway
+        SERVICE_PATH: api-getaway
     restart: unless-stopped
     environment:
       NODE_ENV: production
@@ -164,6 +168,23 @@ services:
         condition: service_healthy
     ports:
       - "15053:15053"
+
+  account-service:
+    build:
+      context: .
+      dockerfile: Dockerfile.service
+      args:
+        SERVICE_PATH: account-service
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      AUTH_DB_URL: postgres://app:secret@postgres:5432/auth_db
+      RABBITMQ_URL: amqp://app:secret@rabbitmq:5672
+    depends_on:
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
 
 volumes:
   postgres_data:

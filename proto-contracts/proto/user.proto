@@ -9,6 +9,10 @@ service UserService {
   rpc ListClients  (ListClientsRequest)  returns (ListClientsResponse);
   rpc UpdateClient (UpdateClientRequest) returns (SimpleResponse);
   rpc DeleteClient (DeleteClientRequest) returns (SimpleResponse);
+  rpc SetCurrency      (SetCurrencyRequest)      returns (SimpleResponse);
+  rpc SetBalance       (SetBalanceRequest)       returns (SimpleResponse);
+  rpc AddBalance       (AddBalanceRequest)       returns (AddBalanceResponse);
+  rpc GetClientBalance (GetClientBalanceRequest) returns (GetClientBalanceResponse);
 }
 
 message ListUsersRequest {}
@@ -59,6 +63,9 @@ message ClientEntry {
   string email      = 2;
   string name       = 3;
   int64  created_at = 4;
+  string account_id = 5;
+  string currency   = 6;
+  double balance    = 7;
 }
 
 message ListClientsResponse {
@@ -76,4 +83,34 @@ message UpdateClientRequest {
 message DeleteClientRequest {
   string id         = 1;
   string deleted_by = 2;
+}
+
+message SetCurrencyRequest {
+  string client_id = 1;
+  string currency  = 2;
+}
+
+message SetBalanceRequest {
+  string client_id = 1;
+  double balance   = 2;
+}
+
+message AddBalanceRequest {
+  string client_id = 1;
+  double amount    = 2;
+}
+
+message AddBalanceResponse {
+  bool   success = 1;
+  string message = 2;
+  double balance = 3;
+}
+
+message GetClientBalanceRequest {
+  string client_id = 1;
+}
+
+message GetClientBalanceResponse {
+  double balance  = 1;
+  string currency = 2;
 }

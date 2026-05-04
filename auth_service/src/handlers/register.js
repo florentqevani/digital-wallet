@@ -5,6 +5,7 @@ const jwt = require('jsonwebtoken');
 const pool = require('../db');
 const config = require('../config');
 const { createEvent } = require('../rabbitmq/log-producer');
+const { publishClientRegistered } = require('../rabbitmq/account-producer');
 const { permissionsForRole } = require('../permissions');
 
 async function RegisterClient(call, callback) {
@@ -45,6 +46,8 @@ async function RegisterClient(call, callback) {
             message: `Client registered: ${email}`,
             timestamp: Date.now(),
         });
+
+        publishClientRegistered(client.id);
 
         callback(null, {
             token,

@@ -17,9 +17,12 @@ CREATE INDEX IF NOT EXISTS idx_users_email ON users (email);
 
 CREATE TABLE IF NOT EXISTS clients (
   id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  account_id    UUID,
   email         TEXT NOT NULL UNIQUE,
   password_hash TEXT NOT NULL,
   name          TEXT,
+  currency      TEXT DEFAULT 'ALL',
+  balance       NUMERIC(20,2) DEFAULT 0,
   created_at    TIMESTAMPTZ DEFAULT NOW()
 );
 

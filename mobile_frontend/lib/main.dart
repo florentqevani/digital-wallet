@@ -20,11 +20,21 @@ class MobileFrontendApp extends StatefulWidget {
 class _MobileFrontendAppState extends State<MobileFrontendApp> {
   final AuthController _authController = AuthController();
   bool _initialized = false;
+  // Track only auth status so MaterialApp is NOT rebuilt on every notifyListeners()
+  bool _isAuthenticated = false;
 
   @override
   void initState() {
     super.initState();
+    _authController.addListener(_onAuthChanged);
     _restoreSession();
+  }
+
+  void _onAuthChanged() {
+    final newAuth = _authController.isAuthenticated;
+    if (newAuth != _isAuthenticated && mounted) {
+      setState(() => _isAuthenticated = newAuth);
+    }
   }
 
   Future<void> _restoreSession() async {
@@ -34,39 +44,35 @@ class _MobileFrontendAppState extends State<MobileFrontendApp> {
     }
     setState(() {
       _initialized = true;
+      _isAuthenticated = _authController.isAuthenticated;
     });
   }
 
   @override
   void dispose() {
+    _authController.removeListener(_onAuthChanged);
     _authController.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    return AnimatedBuilder(
-      animation: _authController,
-      builder: (context, _) {
-        return MaterialApp(
-          debugShowCheckedModeBanner: false,
-          title: 'GRPC Mobile Frontend',
-          theme: AppTheme.light,
-          routes: {
-            LoginPage.routeName: (context) =>
-                LoginPage(controller: _authController),
-            RegisterPage.routeName: (context) =>
-                RegisterPage(controller: _authController),
-            HomePage.routeName: (context) =>
-                HomePage(controller: _authController),
-          },
-          home: !_initialized
-              ? const _SplashScreen()
-              : (_authController.isAuthenticated
-                    ? HomePage(controller: _authController)
-                    : LoginPage(controller: _authController)),
-        );
+    return MaterialApp(
+      debugShowCheckedModeBanner: false,
+      title: 'GRPC Mobile Frontend',
+      theme: AppTheme.light,
+      routes: {
+        LoginPage.routeName: (context) =>
+            LoginPage(controller: _authController),
+        RegisterPage.routeName: (context) =>
+            RegisterPage(controller: _authController),
+        HomePage.routeName: (context) => HomePage(controller: _authController),
       },
+      home: !_initialized
+          ? const _SplashScreen()
+          : (_isAuthenticated
+                ? HomePage(controller: _authController)
+                : LoginPage(controller: _authController)),
     );
   }
 }

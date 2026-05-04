@@ -31,6 +31,11 @@ export default function TopNav() {
                         {role === 'superadmin' ? 'Users' : 'Clients'}
                     </NavLink>
                 )}
+                {(role === 'user' || role === 'superadmin') && (
+                    <NavLink to="/accounts" className={({ isActive }) => `nav-pill ${isActive ? 'nav-pill-active' : ''}`}>
+                        Accounts
+                    </NavLink>
+                )}
             </nav>
             <div className="top-nav-actions">
                 <span className="role-chip">{role}</span>

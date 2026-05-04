@@ -3,6 +3,7 @@ import LoginPage from './pages/login-page';
 import MyLogsPage from './pages/my-logs-page';
 import AdminDashboardPage from './pages/admin-dashboard-page';
 import UserManagementPage from './pages/user-management-page';
+import AccountsPage from './pages/accounts-page';
 import NotFoundPage from './pages/not-found-page';
 import ProtectedRoute from './components/protected-route';
 import { useAuth } from './hooks/use-auth';
@@ -42,6 +43,14 @@ export default function App() {
                 element={
                     <ProtectedRoute roles={['user', 'superadmin']}>
                         <UserManagementPage />
+                    </ProtectedRoute>
+                }
+            />
+            <Route
+                path="/accounts"
+                element={
+                    <ProtectedRoute roles={['user', 'superadmin']}>
+                        <AccountsPage />
                     </ProtectedRoute>
                 }
             />

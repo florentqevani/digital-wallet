@@ -14,6 +14,9 @@ const clientsRoutes = require('./routes/clients');
 const logsRoutes = require('./routes/logs');
 const usersRoutes = require('./routes/users');
 const healthRoutes = require('./routes/health');
+const currencyRoutes = require('./routes/add-currency');
+const balanceRoutes = require('./routes/set-balance');
+const clientBalanceRoutes = require('./routes/balance');
 
 const app = express();
 
@@ -36,6 +39,9 @@ app.use('/api/auth', authRoutes);
 app.use('/api/clients', clientsRoutes);
 app.use('/api/logs', logsRoutes);
 app.use('/api/users', usersRoutes);
+app.use('/api/add-currency', currencyRoutes);
+app.use('/api/set-balance', balanceRoutes);
+app.use('/api/balance', clientBalanceRoutes);
 
 // 404 handler
 app.use((req, res) => {

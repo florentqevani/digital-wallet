@@ -4,7 +4,7 @@ const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 const pool = require('../db');
 const config = require('../config');
-const { createEvent } = require('../rabbitmq/log-producer').default;
+const { createEvent } = require('../rabbitmq/log-producer');
 const { permissionsForRole } = require('../permissions');
 
 async function LoginClient(call, callback) {

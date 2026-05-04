@@ -2,7 +2,7 @@
 
 const bcrypt = require('bcrypt');
 const pool = require('../db');
-const { writeLog } = require('../log-producer');
+const { createEvent } = require('../log-producer');
 
 async function RegisterUser(call, callback) {
     const { email, password, name, role, created_by } = call.request;
@@ -23,7 +23,7 @@ async function RegisterUser(call, callback) {
             [email, hashedPassword, name || '', safeRole]
         );
 
-        writeLog({
+        createEvent({
             actor_id: created_by || email,
             actor_type: 'superadmin',
             action: 'REGISTER_USER',
@@ -34,7 +34,7 @@ async function RegisterUser(call, callback) {
 
         callback(null, { success: true, message: 'User registered successfully' });
     } catch (error) {
-        writeLog({
+        createEvent({
             actor_id: created_by || email,
             actor_type: 'superadmin',
             action: 'REGISTER_USER',
@@ -113,7 +113,7 @@ async function UpdateUser(call, callback) {
             return callback(null, { success: false, message: 'User not found' });
         }
 
-        writeLog({
+        createEvent({
             actor_id: updated_by || id,
             actor_type: 'superadmin',
             action: 'UPDATE_USER',
@@ -124,7 +124,7 @@ async function UpdateUser(call, callback) {
 
         callback(null, { success: true, message: 'User updated successfully' });
     } catch (error) {
-        writeLog({
+        createEvent({
             actor_id: updated_by || id,
             actor_type: 'superadmin',
             action: 'UPDATE_USER',
@@ -178,7 +178,7 @@ async function DeleteUser(call, callback) {
 async function ListClients(call, callback) {
     try {
         const result = await pool.query(
-            `SELECT id, email, COALESCE(name, '') AS name, EXTRACT(EPOCH FROM created_at)::bigint * 1000 AS created_at
+            `SELECT id, email, COALESCE(name, '') AS name, EXTRACT(EPOCH FROM created_at)::bigint * 1000 AS created_at, COALESCE(account_id::text, '') AS account_id, COALESCE(currency, '') AS currency, COALESCE(balance, 0)::float AS balance
              FROM clients
              ORDER BY created_at DESC`
         );
@@ -188,6 +188,9 @@ async function ListClients(call, callback) {
             email: row.email,
             name: row.name,
             created_at: row.created_at,
+            account_id: row.account_id,
+            currency: row.currency,
+            balance: parseFloat(row.balance),
         }));
 
         callback(null, { clients });
@@ -235,7 +238,7 @@ async function UpdateClient(call, callback) {
             return callback(null, { success: false, message: 'Client not found' });
         }
 
-        writeLog({
+        createEvent({
             actor_id: updated_by || id,
             actor_type: 'superadmin',
             action: 'UPDATE_CLIENT',
@@ -246,7 +249,7 @@ async function UpdateClient(call, callback) {
 
         callback(null, { success: true, message: 'Client updated successfully' });
     } catch (error) {
-        writeLog({
+        createEvent({
             actor_id: updated_by || id,
             actor_type: 'superadmin',
             action: 'UPDATE_CLIENT',
@@ -273,7 +276,7 @@ async function DeleteClient(call, callback) {
             return callback(null, { success: false, message: 'Client not found' });
         }
 
-        writeLog({
+        createEvent({
             actor_id: deleted_by || id,
             actor_type: 'superadmin',
             action: 'DELETE_CLIENT',
@@ -284,7 +287,7 @@ async function DeleteClient(call, callback) {
 
         callback(null, { success: true, message: 'Client deleted successfully' });
     } catch (error) {
-        writeLog({
+        createEvent({
             actor_id: deleted_by || id,
             actor_type: 'superadmin',
             action: 'DELETE_CLIENT',
@@ -305,4 +308,119 @@ module.exports = {
     ListClients,
     UpdateClient,
     DeleteClient,
+    SetCurrency,
+    SetBalance,
+    AddBalance,
+    GetClientBalance,
 };
+
+async function AddBalance(call, callback) {
+    const { client_id, amount } = call.request;
+
+    if (!client_id) {
+        return callback(null, { success: false, message: 'client_id is required', balance: 0 });
+    }
+
+    const delta = parseFloat(amount);
+    if (isNaN(delta) || delta <= 0) {
+        return callback(null, { success: false, message: 'amount must be a positive number', balance: 0 });
+    }
+
+    try {
+        const result = await pool.query(
+            'UPDATE clients SET balance = balance + $1 WHERE id = $2 RETURNING balance',
+            [delta, client_id]
+        );
+
+        if (result.rowCount === 0) {
+            return callback(null, { success: false, message: 'Client not found', balance: 0 });
+        }
+
+        const newBalance = parseFloat(result.rows[0].balance);
+        callback(null, { success: true, message: `Deposited ${delta}. New balance: ${newBalance.toFixed(2)}`, balance: newBalance });
+    } catch (error) {
+        callback(null, { success: false, message: error.message, balance: 0 });
+    }
+}
+
+async function GetClientBalance(call, callback) {
+    const { client_id } = call.request;
+
+    if (!client_id) {
+        return callback(null, { balance: 0, currency: 'ALL' });
+    }
+
+    try {
+        const result = await pool.query(
+            `SELECT COALESCE(balance, 0)::float AS balance, COALESCE(currency, 'ALL') AS currency FROM clients WHERE id = $1`,
+            [client_id]
+        );
+
+        if (result.rowCount === 0) {
+            return callback(null, { balance: 0, currency: 'ALL' });
+        }
+
+        callback(null, {
+            balance: parseFloat(result.rows[0].balance),
+            currency: result.rows[0].currency,
+        });
+    } catch (error) {
+        callback(null, { balance: 0, currency: 'ALL' });
+    }
+}
+
+async function SetBalance(call, callback) {
+    const { client_id, balance } = call.request;
+
+    if (!client_id) {
+        return callback(null, { success: false, message: 'client_id is required' });
+    }
+
+    const amount = parseFloat(balance);
+    if (isNaN(amount) || amount < 0) {
+        return callback(null, { success: false, message: 'balance must be a non-negative number' });
+    }
+
+    try {
+        const result = await pool.query(
+            'UPDATE clients SET balance = $1 WHERE id = $2 RETURNING id',
+            [amount, client_id]
+        );
+
+        if (result.rowCount === 0) {
+            return callback(null, { success: false, message: 'Client not found' });
+        }
+
+        callback(null, { success: true, message: `Balance set to ${amount}` });
+    } catch (error) {
+        callback(null, { success: false, message: error.message });
+    }
+}
+
+async function SetCurrency(call, callback) {
+    const { client_id, currency } = call.request;
+
+    if (!client_id || !currency) {
+        return callback(null, { success: false, message: 'client_id and currency are required' });
+    }
+
+    const allowed = ['ALL', 'USD', 'EUR', 'GBP'];
+    if (!allowed.includes(currency.toUpperCase())) {
+        return callback(null, { success: false, message: `Currency must be one of: ${allowed.join(', ')}` });
+    }
+
+    try {
+        const result = await pool.query(
+            'UPDATE clients SET currency = $1 WHERE id = $2 RETURNING id',
+            [currency.toUpperCase(), client_id]
+        );
+
+        if (result.rowCount === 0) {
+            return callback(null, { success: false, message: 'Client not found' });
+        }
+
+        callback(null, { success: true, message: `Currency set to ${currency.toUpperCase()}` });
+    } catch (error) {
+        callback(null, { success: false, message: error.message });
+    }
+}

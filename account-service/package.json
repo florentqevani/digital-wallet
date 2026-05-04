@@ -1,0 +1,15 @@
+{
+    "name": "account_service",
+    "version": "1.0.0",
+    "description": "Account management microservice for GRPC-based application",
+    "main": "index.js",
+    "scripts": {
+        "start": "node src/server.js",
+        "dev": "nodemon src/server.js"
+    },
+    "dependencies": {
+        "amqplib": "^0.10.9",
+        "pg": "^8.7.1",
+        "dotenv": "^10.0.0"
+    }
+}

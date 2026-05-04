@@ -1,7 +1,7 @@
-// src/log-producer.js - RabbitMQ publisher for fire-and-forget log writes
+// src/rabbitmq/account-producer.js - Publishes a client-registered event for account-service
 const amqp = require('amqplib');
 
-const QUEUE = 'service-logs';
+const QUEUE = 'client-registered';
 const AMQP_URL = process.env.RABBITMQ_URL || 'amqp://app:secret@rabbitmq:5672';
 
 let _channel = null;
@@ -14,32 +14,23 @@ async function _ensureChannel() {
     conn.on('error', () => { _channel = null; });
     conn.on('close', () => { _channel = null; });
     _channel = ch;
-    console.log('[LogProducer] RabbitMQ channel ready');
+    console.log('[AccountProducer] RabbitMQ channel ready');
     return ch;
 }
 
 _ensureChannel().catch(err =>
-    console.warn('[LogProducer] Initial connect failed (will retry on next write):', err.message)
+    console.warn('[AccountProducer] Initial connect failed (will retry on next write):', err.message)
 );
 
-function createEvent(payload) {
+function publishClientRegistered(clientId) {
+    const payload = { client_id: clientId };
     _ensureChannel()
         .then(ch =>
             ch.sendToQueue(QUEUE, Buffer.from(JSON.stringify(payload)), { persistent: true })
         )
         .catch(err =>
-            console.error('[LogProducer] Failed to publish log:', err.message, '| action:', payload.action)
+            console.error('[AccountProducer] Failed to publish:', err.message, '| client_id:', clientId)
         );
 }
 
-async function shutdown() {
-    if (_channel) {
-        try { await _channel.close(); } catch (_) { }
-        _channel = null;
-    }
-}
-
-process.on('SIGTERM', shutdown);
-process.on('SIGINT', shutdown);
-
-module.exports = { createEvent };
+module.exports = { publishClientRegistered };

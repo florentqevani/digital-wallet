@@ -11,6 +11,10 @@ const {
     ListClients,
     UpdateClient,
     DeleteClient,
+    SetCurrency,
+    SetBalance,
+    AddBalance,
+    GetClientBalance,
 } = require('./handlers/user-management');
 
 const protoPath = path.join(__dirname, '../node_modules/@myapp/proto-contracts/proto');
@@ -36,6 +40,10 @@ server.addService(userProto.UserService.service, {
     ListClients,
     UpdateClient,
     DeleteClient,
+    SetCurrency,
+    SetBalance,
+    AddBalance,
+    GetClientBalance,
 });
 
 server.bindAsync(

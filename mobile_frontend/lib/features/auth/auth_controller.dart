@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
 import 'package:mobile_frontend/core/network/api_client.dart';
 import 'package:mobile_frontend/core/storage/session_store.dart';
@@ -46,6 +48,8 @@ class AuthController extends ChangeNotifier {
   String _token = '';
   String _role = '';
   String _email = '';
+  double _balance = 0.0;
+  String _currency = 'ALL';
   List<String> _permissions = <String>[];
   List<ActivityEntry> _recentActivity = <ActivityEntry>[];
   int _logsPage = 1;
@@ -58,6 +62,8 @@ class AuthController extends ChangeNotifier {
   String? get error => _error;
   String get role => _role;
   String get email => _email;
+  double get balance => _balance;
+  String get currency => _currency;
   List<String> get permissions => List.unmodifiable(_permissions);
   List<ActivityEntry> get recentActivity => List.unmodifiable(_recentActivity);
 
@@ -72,8 +78,8 @@ class AuthController extends ChangeNotifier {
     _email = saved.email;
     _permissions = List<String>.from(saved.permissions);
     notifyListeners();
-    // Fetch logs for restored session
     await fetchLogs(refresh: false);
+    await fetchBalance();
   }
 
   Future<bool> register({
@@ -173,6 +179,7 @@ class AuthController extends ChangeNotifier {
       );
 
       notifyListeners();
+      unawaited(fetchBalance());
       return true;
     } catch (e) {
       _setError(_messageFromError(e));
@@ -186,6 +193,8 @@ class AuthController extends ChangeNotifier {
     _token = '';
     _role = '';
     _email = '';
+    _balance = 0.0;
+    _currency = 'ALL';
     _permissions = <String>[];
     _recentActivity = <ActivityEntry>[];
     _logsPage = 1;
@@ -193,6 +202,104 @@ class AuthController extends ChangeNotifier {
     _setError(null);
     await _sessionStore.clear();
     notifyListeners();
+  }
+
+  /// Fetches the client's own balance from the BFF.
+  Future<void> fetchBalance() async {
+    if (_token.isEmpty) return;
+    try {
+      final response = await _apiClient.get('/api/balance', token: _token);
+      _balance = ((response['balance'] ?? 0) as num).toDouble();
+      _currency = (response['currency'] ?? 'ALL').toString();
+      notifyListeners();
+    } catch (e) {
+      // If the token is rejected (401), the stored session is invalid — clear it.
+      if (e is ApiException && e.statusCode == 401) {
+        await logout();
+      }
+    }
+  }
+
+  /// Deposits [amount] into the client's own balance.
+  /// Returns null on success (balance updated), or an error message string.
+  Future<String?> addMoney(double amount) async {
+    if (_token.isEmpty) return 'Not authenticated';
+    try {
+      final response = await _apiClient.post(
+        '/api/balance/add',
+        body: {'amount': amount},
+        token: _token,
+      );
+      if (response['success'] == true) {
+        _balance = ((response['balance'] ?? _balance) as num).toDouble();
+        notifyListeners();
+        return null;
+      }
+      return (response['message'] ?? 'Failed to add money').toString();
+    } catch (e) {
+      if (e is ApiException && e.statusCode == 401) {
+        await logout();
+        return 'Session expired. Please log in again.';
+      }
+      return _messageFromError(e);
+    }
+  }
+
+  /// Initiates a RaiAccept payment to top up balance by [amount] ALL.
+  /// Returns a map with `paymentFormUrl` and `raiOrderId` on success, or null on error.
+  Future<Map<String, String>?> initiatePayment(double amount) async {
+    if (_token.isEmpty) return null;
+    _setBusy(true);
+    _setError(null);
+    try {
+      final response = await _apiClient.post(
+        '/api/payments/initiate',
+        body: {'amount': amount},
+        token: _token,
+      );
+      final url = (response['paymentFormUrl'] ?? '').toString();
+      final orderId = (response['raiOrderId'] ?? '').toString();
+      if (url.isEmpty || orderId.isEmpty) {
+        _setError('Invalid payment response from server.');
+        return null;
+      }
+      return {'paymentFormUrl': url, 'raiOrderId': orderId};
+    } catch (e) {
+      if (e is ApiException && e.statusCode == 401) {
+        await logout();
+        _setError('Session expired. Please log in again.');
+      } else {
+        _setError(_messageFromError(e));
+      }
+      return null;
+    } finally {
+      _setBusy(false);
+    }
+  }
+
+  /// Confirms a completed RaiAccept payment and credits balance.
+  /// Returns null on success (balance updated in state), or an error message.
+  Future<String?> confirmPayment(String raiOrderId, double amount) async {
+    if (_token.isEmpty) return 'Not authenticated';
+    try {
+      final response = await _apiClient.post(
+        '/api/payments/confirm',
+        body: {'raiOrderId': raiOrderId, 'amount': amount},
+        token: _token,
+      );
+      if (response['success'] == true) {
+        _balance = ((response['balance'] ?? _balance) as num).toDouble();
+        notifyListeners();
+        return null;
+      }
+      return (response['message'] ?? 'Payment confirmation failed').toString();
+    } catch (e) {
+      if (e is ApiException && e.statusCode == 401) {
+        await logout();
+        return 'Session expired. Please log in again.';
+      }
+      return _messageFromError(e);
+    }
   }
 
   /// Fetches the client's own logs from the BFF.
