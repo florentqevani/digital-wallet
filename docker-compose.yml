@@ -4,8 +4,8 @@ services:
     container_name: grpc-postgres
     restart: unless-stopped
     environment:
-      POSTGRES_USER: app
-      POSTGRES_PASSWORD: secret
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
       POSTGRES_DB: app_main
     volumes:
       - postgres_data:/var/lib/postgresql/data
@@ -24,8 +24,8 @@ services:
     container_name: grpc-rabbitmq
     restart: unless-stopped
     environment:
-      RABBITMQ_DEFAULT_USER: app
-      RABBITMQ_DEFAULT_PASS: secret
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASS}
     volumes:
       - rabbitmq_data:/var/lib/rabbitmq/mnesia
     healthcheck:
@@ -48,11 +48,11 @@ services:
       NODE_ENV: production
       PORT: 50051
       HEALTH_PORT: 15051
-      AUTH_DB_URL: postgres://app:secret@postgres:5432/auth_db
-      JWT_SECRET: your-secret-key-change-this-in-production
+      AUTH_DB_URL: postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/auth_db
+      JWT_SECRET: ${JWT_SECRET}
       JWT_EXPIRY: 7d
       LOG_SERVICE_URL: log-service:50052
-      RABBITMQ_URL: amqp://app:secret@rabbitmq:5672
+      RABBITMQ_URL: amqp://${RABBITMQ_USER}:${RABBITMQ_PASS}@rabbitmq:5672
     depends_on:
       postgres:
         condition: service_healthy
@@ -72,8 +72,8 @@ services:
       NODE_ENV: production
       PORT: 50052
       HEALTH_PORT: 15052
-      LOG_DB_URL: postgres://app:secret@postgres:5432/log_db
-      RABBITMQ_URL: amqp://app:secret@rabbitmq:5672
+      LOG_DB_URL: postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/log_db
+      RABBITMQ_URL: amqp://${RABBITMQ_USER}:${RABBITMQ_PASS}@rabbitmq:5672
     depends_on:
       postgres:
         condition: service_healthy
@@ -95,10 +95,10 @@ services:
       AUTH_SERVICE_URL: auth-service:50051
       LOG_SERVICE_URL: log-service:50052
       API_GATEWAY_URL: http://api-gateway:8080
-      RAIACCEPT_USERNAME: c1e6d982-8c78-4a20-88c2-31f7b43b50a0
-      RAIACCEPT_PASSWORD: "(XYI[0Lc<wgt}mn?$$s!qLJ7C6|h}JP.&3f!"
-      RAIACCEPT_WEBHOOK_URL: http://localhost:3002
-      RAIACCEPT_MOBILE_CALLBACK_BASE: http://mobile.callback
+      RAIACCEPT_USERNAME: ${RAIACCEPT_USERNAME}
+      RAIACCEPT_PASSWORD: ${RAIACCEPT_PASSWORD}
+      RAIACCEPT_WEBHOOK_URL: ${RAIACCEPT_WEBHOOK_URL}
+      RAIACCEPT_MOBILE_CALLBACK_BASE: ${RAIACCEPT_MOBILE_CALLBACK_BASE}
     depends_on:
       - api-gateway
     ports:
@@ -117,7 +117,7 @@ services:
       AUTH_SERVICE_URL: auth-service:50051
       LOG_SERVICE_URL: log-service:50052
       API_GATEWAY_URL: http://api-gateway:8080
-      JWT_SECRET: your-secret-key-change-this-in-production
+      JWT_SECRET: ${JWT_SECRET}
     depends_on:
       - api-gateway
     ports:
@@ -137,7 +137,7 @@ services:
       LOG_SERVICE_URL: log-service:50052
       USER_SERVICE_URL: user-service:50053
       CLIENT_SERVICE_URL: client-service:50053
-      JWT_SECRET: your-secret-key-change-this-in-production
+      JWT_SECRET: ${JWT_SECRET}
       RATE_LIMIT_WINDOW_MS: 900000
       RATE_LIMIT_MAX_REQUESTS: 100
     depends_on:
@@ -158,9 +158,9 @@ services:
       NODE_ENV: production
       PORT: 50053
       HEALTH_PORT: 15053
-      AUTH_DB_URL: postgres://app:secret@postgres:5432/auth_db
+      AUTH_DB_URL: postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/auth_db
       LOG_SERVICE_URL: log-service:50052
-      RABBITMQ_URL: amqp://app:secret@rabbitmq:5672
+      RABBITMQ_URL: amqp://${RABBITMQ_USER}:${RABBITMQ_PASS}@rabbitmq:5672
     depends_on:
       postgres:
         condition: service_healthy
@@ -178,8 +178,8 @@ services:
     restart: unless-stopped
     environment:
       NODE_ENV: production
-      AUTH_DB_URL: postgres://app:secret@postgres:5432/auth_db
-      RABBITMQ_URL: amqp://app:secret@rabbitmq:5672
+      AUTH_DB_URL: postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/auth_db
+      RABBITMQ_URL: amqp://${RABBITMQ_USER}:${RABBITMQ_PASS}@rabbitmq:5672
     depends_on:
       postgres:
         condition: service_healthy

@@ -14,6 +14,9 @@
 *.cert
 *.crt
 secrets/
+# Keep the example file tracked
+!.env.example
+!**/.env.example
 
 # Node.js
 node_modules/
