@@ -4,7 +4,7 @@ const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 const pool = require('../db');
 const config = require('../config');
-const { writeLog } = require('../rabbitmq/log-producer');
+const { createEvent } = require('../rabbitmq/log-producer');
 const { permissionsForRole } = require('../permissions');
 
 async function RegisterClient(call, callback) {
@@ -37,7 +37,7 @@ async function RegisterClient(call, callback) {
             { expiresIn: config.jwtExpiry }
         );
 
-        writeLog({
+        createEvent({
             actor_id: client.id,
             actor_type: 'client',
             action: 'REGISTER',
@@ -56,7 +56,7 @@ async function RegisterClient(call, callback) {
     } catch (error) {
         console.error('❌ Registration error:', error.message);
 
-        writeLog({
+        createEvent({
             actor_id: email,
             actor_type: 'client',
             action: 'REGISTER',

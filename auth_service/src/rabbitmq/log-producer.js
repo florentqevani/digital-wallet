@@ -22,7 +22,7 @@ _ensureChannel().catch(err =>
     console.warn('[LogProducer] Initial connect failed (will retry on next write):', err.message)
 );
 
-function writeLog(payload) {
+function createEvent(payload) {
     _ensureChannel()
         .then(ch =>
             ch.sendToQueue(QUEUE, Buffer.from(JSON.stringify(payload)), { persistent: true })
@@ -42,4 +42,4 @@ async function shutdown() {
 process.on('SIGTERM', shutdown);
 process.on('SIGINT', shutdown);
 
-export default { writeLog };
+export default { createEvent };

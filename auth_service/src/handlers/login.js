@@ -4,7 +4,7 @@ const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 const pool = require('../db');
 const config = require('../config');
-const { writeLog } = require('../rabbitmq/log-producer').default;
+const { createEvent } = require('../rabbitmq/log-producer').default;
 const { permissionsForRole } = require('../permissions');
 
 async function LoginClient(call, callback) {
@@ -15,7 +15,7 @@ async function LoginClient(call, callback) {
 
         if (result.rows.length === 0) {
             console.log(`⚠ Login failed: client not found - ${email}`);
-            writeLog({ actor_id: email, actor_type: 'client', action: 'LOGIN', status: 'ERROR', message: 'Client not found', timestamp: Date.now() });
+            createEvent({ actor_id: email, actor_type: 'client', action: 'LOGIN', status: 'ERROR', message: 'Client not found', timestamp: Date.now() });
             return callback(null, { token: '', role: '', success: false, message: 'Invalid email or password' });
         }
 
@@ -24,7 +24,7 @@ async function LoginClient(call, callback) {
 
         if (!isPasswordValid) {
             console.log(`⚠ Login failed: invalid password - ${email}`);
-            writeLog({ actor_id: email, actor_type: 'client', action: 'LOGIN', status: 'ERROR', message: 'Invalid password', timestamp: Date.now() });
+            createEvent({ actor_id: email, actor_type: 'client', action: 'LOGIN', status: 'ERROR', message: 'Invalid password', timestamp: Date.now() });
             return callback(null, { token: '', role: '', success: false, message: 'Invalid email or password' });
         }
 
@@ -36,12 +36,12 @@ async function LoginClient(call, callback) {
         );
 
         console.log(`✓ Client logged in: ${email}`);
-        writeLog({ actor_id: client.id, actor_type: 'client', action: 'LOGIN', status: 'SUCCESS', message: `Client logged in: ${email}`, timestamp: Date.now() });
+        createEvent({ actor_id: client.id, actor_type: 'client', action: 'LOGIN', status: 'SUCCESS', message: `Client logged in: ${email}`, timestamp: Date.now() });
 
         callback(null, { token, role, permissions: permissionsForRole(role), success: true, message: 'Logged in successfully' });
     } catch (error) {
         console.error('❌ Login error:', error.message);
-        writeLog({ actor_id: email, actor_type: 'client', action: 'LOGIN', status: 'ERROR', message: error.message, timestamp: Date.now() });
+        createEvent({ actor_id: email, actor_type: 'client', action: 'LOGIN', status: 'ERROR', message: error.message, timestamp: Date.now() });
         callback(null, { token: '', role: '', success: false, message: error.message });
     }
 }
@@ -53,7 +53,7 @@ async function LoginUser(call, callback) {
         const result = await pool.query('SELECT * FROM users WHERE email = $1', [email]);
         if (result.rows.length === 0) {
             console.log(`⚠ Login failed: user not found - ${email}`);
-            writeLog({ actor_id: email, actor_type: 'user', action: 'LOGIN', status: 'ERROR', message: 'User not found', timestamp: Date.now() });
+            createEvent({ actor_id: email, actor_type: 'user', action: 'LOGIN', status: 'ERROR', message: 'User not found', timestamp: Date.now() });
             return callback(null, { token: '', role: '', success: false, message: 'Invalid email or password' });
         }
 
@@ -62,7 +62,7 @@ async function LoginUser(call, callback) {
 
         if (!isPasswordValid) {
             console.log(`⚠ Login failed: invalid password - ${email}`);
-            writeLog({ actor_id: email, actor_type: 'user', action: 'LOGIN', status: 'ERROR', message: 'Invalid password', timestamp: Date.now() });
+            createEvent({ actor_id: email, actor_type: 'user', action: 'LOGIN', status: 'ERROR', message: 'Invalid password', timestamp: Date.now() });
             return callback(null, { token: '', role: '', success: false, message: 'Invalid email or password' });
         }
 
@@ -74,12 +74,12 @@ async function LoginUser(call, callback) {
         );
 
         console.log(`✓ User logged in: ${email} (role: ${user.role})`);
-        writeLog({ actor_id: user.id, actor_type: user.role, action: 'LOGIN', status: 'SUCCESS', message: `User logged in: ${email}`, timestamp: Date.now() });
+        createEvent({ actor_id: user.id, actor_type: user.role, action: 'LOGIN', status: 'SUCCESS', message: `User logged in: ${email}`, timestamp: Date.now() });
 
         callback(null, { token, role: user.role, permissions: permissionsForRole(user.role), success: true, message: 'Logged in successfully' });
     } catch (error) {
         console.error('❌ Login error:', error.message);
-        writeLog({ actor_id: email, actor_type: 'user', action: 'LOGIN', status: 'ERROR', message: error.message, timestamp: Date.now() });
+        createEvent({ actor_id: email, actor_type: 'user', action: 'LOGIN', status: 'ERROR', message: error.message, timestamp: Date.now() });
         callback(null, { token: '', role: '', success: false, message: error.message });
     }
 }
