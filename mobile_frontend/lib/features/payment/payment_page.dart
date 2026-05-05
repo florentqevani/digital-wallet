@@ -1,6 +1,8 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:mobile_frontend/core/theme/app_colors.dart';
 import 'package:mobile_frontend/features/auth/auth_controller.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'package:webview_flutter/webview_flutter.dart';
 
 /// Full-screen payment page that embeds the RaiAccept hosted payment form.
@@ -28,9 +30,17 @@ class PaymentPage extends StatefulWidget {
 }
 
 class _PaymentPageState extends State<PaymentPage> {
-  late final WebViewController _webController;
+  WebViewController? _webController;
   bool _pageLoading = true;
   bool _confirming = false;
+  // Web-only: tracks whether the payment tab has been opened
+  bool _webTabOpened = false;
+
+  // Only Android and iOS have a webview_flutter implementation.
+  static bool get _webViewSupported =>
+      !kIsWeb &&
+      (defaultTargetPlatform == TargetPlatform.android ||
+          defaultTargetPlatform == TargetPlatform.iOS);
 
   // Fake host we tell RaiAccept to redirect to — intercepted before the
   // WebView ever tries to load it.
@@ -39,6 +49,8 @@ class _PaymentPageState extends State<PaymentPage> {
   @override
   void initState() {
     super.initState();
+
+    if (!_webViewSupported) return;
 
     _webController = WebViewController()
       ..setJavaScriptMode(JavaScriptMode.unrestricted)
@@ -90,6 +102,19 @@ class _PaymentPageState extends State<PaymentPage> {
     }
   }
 
+  Future<void> _openWebPayment() async {
+    final uri = Uri.parse('${widget.paymentFormUrl}&mode=frameless');
+    if (!await launchUrl(uri, mode: LaunchMode.externalApplication)) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Could not open payment page.')),
+        );
+      }
+      return;
+    }
+    setState(() => _webTabOpened = true);
+  }
+
   @override
   Widget build(BuildContext context) {
     return PopScope(
@@ -116,10 +141,101 @@ class _PaymentPageState extends State<PaymentPage> {
         ),
         body: Stack(
           children: [
-            WebViewWidget(controller: _webController),
-            if (_pageLoading || _confirming)
+            if (_webViewSupported && _webController != null)
+              WebViewWidget(controller: _webController!)
+            else
+              _WebPaymentPrompt(
+                paymentFormUrl: widget.paymentFormUrl,
+                tabOpened: _webTabOpened,
+                confirming: _confirming,
+                onOpen: _openWebPayment,
+                onConfirm: _handleSuccess,
+                onCancel: () => Navigator.of(context).pop(false),
+              ),
+            if (_webViewSupported && (_pageLoading || _confirming))
               const Center(child: CircularProgressIndicator()),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Web-platform payment prompt
+// ---------------------------------------------------------------------------
+
+class _WebPaymentPrompt extends StatelessWidget {
+  const _WebPaymentPrompt({
+    required this.paymentFormUrl,
+    required this.tabOpened,
+    required this.confirming,
+    required this.onOpen,
+    required this.onConfirm,
+    required this.onCancel,
+  });
+
+  final String paymentFormUrl;
+  final bool tabOpened;
+  final bool confirming;
+  final VoidCallback onOpen;
+  final VoidCallback onConfirm;
+  final VoidCallback onCancel;
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 420),
+        child: Padding(
+          padding: const EdgeInsets.all(32),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              const Icon(Icons.open_in_new, size: 48, color: Colors.blueGrey),
+              const SizedBox(height: 20),
+              Text(
+                tabOpened
+                    ? 'Complete your payment in the tab that opened, then come back here.'
+                    : 'You will be redirected to the secure RaiAccept payment page in a new tab.',
+                textAlign: TextAlign.center,
+                style: Theme.of(context).textTheme.bodyLarge,
+              ),
+              const SizedBox(height: 32),
+              if (!tabOpened)
+                FilledButton.icon(
+                  onPressed: onOpen,
+                  icon: const Icon(Icons.payment),
+                  label: const Text('Open Payment Page'),
+                ),
+              if (tabOpened) ...[
+                FilledButton.icon(
+                  onPressed: confirming ? null : onConfirm,
+                  icon: confirming
+                      ? const SizedBox(
+                          width: 18,
+                          height: 18,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : const Icon(Icons.check_circle_outline),
+                  label: const Text('I completed the payment'),
+                ),
+                const SizedBox(height: 12),
+                OutlinedButton.icon(
+                  onPressed: confirming ? null : onCancel,
+                  icon: const Icon(Icons.close),
+                  label: const Text('Cancel'),
+                ),
+                const SizedBox(height: 20),
+                TextButton.icon(
+                  onPressed: onOpen,
+                  icon: const Icon(Icons.refresh, size: 18),
+                  label: const Text('Reopen payment page'),
+                ),
+              ],
+            ],
+          ),
         ),
       ),
     );
