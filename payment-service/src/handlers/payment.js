@@ -3,7 +3,7 @@
 const grpc = require('@grpc/grpc-js');
 const { randomUUID } = require('crypto');
 const rai = require('./raiAccept');
-const { writeLog } = require('../log-client');
+const { writeLog } = require('../log-order');
 
 const PAID_STATUSES = new Set(['SUCCESS', 'PAID']);
 
