@@ -1,13 +1,13 @@
 'use strict';
 
-const config = require('../config');
+const config = require('./config');
 
-// ─── RaiAccept constants ─────────────────────────────────────────────────────
+// RaiAccept constants 
 const AUTH_URL = 'https://authenticate.raiaccept.com';
 const AUTH_CLIENT_ID = 'kr2gs4117arvbnaperqff5dml'; // static for all merchants
 const API_URL = 'https://trapi.raiaccept.com';
 
-// ─── Authentication ──────────────────────────────────────────────────────────
+// Authentication 
 
 /**
  * Authenticates with RaiAccept via Amazon Cognito and returns an IdToken.
@@ -39,7 +39,7 @@ async function authenticate() {
     return data.AuthenticationResult.IdToken;
 }
 
-// ─── Order API ───────────────────────────────────────────────────────────────
+// Order API 
 
 /**
  * Creates an order entry in RaiAccept.

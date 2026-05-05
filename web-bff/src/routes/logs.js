@@ -81,4 +81,32 @@ router.get('/all', async (req, res) => {
     }
 });
 
+// ── GET /api/logs/payments
+// Back-office payment logs. Optional query: actor_id, from, to, page, limit
+router.get('/payments', async (req, res) => {
+    try {
+        const { actor_id, from, to, page = 1, limit = 50 } = req.query;
+
+        const response = await gatewayRequest('/api/logs/payments', {
+            method: 'GET',
+            token: extractToken(req),
+            query: {
+                actor_id: actor_id || '',
+                from: from ? Number.parseInt(from) : 0,
+                to: to ? Number.parseInt(to) : 0,
+                page: Number.parseInt(page) || 1,
+                limit: Math.min(Number.parseInt(limit) || 50, 100),
+            },
+        });
+
+        res.json(response);
+    } catch (error) {
+        console.error('❌ Error fetching payment logs:', error.message);
+        res.status(error.statusCode || 500).json({
+            error: 'Failed to fetch payment logs',
+            message: error.payload?.message || error.message,
+        });
+    }
+});
+
 module.exports = router;

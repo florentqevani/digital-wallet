@@ -95,8 +95,6 @@ services:
       AUTH_SERVICE_URL: auth-service:50051
       LOG_SERVICE_URL: log-service:50052
       API_GATEWAY_URL: http://api-gateway:8080
-      RAIACCEPT_USERNAME: ${RAIACCEPT_USERNAME}
-      RAIACCEPT_PASSWORD: ${RAIACCEPT_PASSWORD}
       RAIACCEPT_WEBHOOK_URL: ${RAIACCEPT_WEBHOOK_URL}
       RAIACCEPT_MOBILE_CALLBACK_BASE: ${RAIACCEPT_MOBILE_CALLBACK_BASE}
     depends_on:
@@ -137,6 +135,7 @@ services:
       LOG_SERVICE_URL: log-service:50052
       USER_SERVICE_URL: user-service:50053
       CLIENT_SERVICE_URL: client-service:50053
+      PAYMENT_SERVICE_URL: payment-service:50055
       JWT_SECRET: ${JWT_SECRET}
       RATE_LIMIT_WINDOW_MS: 900000
       RATE_LIMIT_MAX_REQUESTS: 100
@@ -144,6 +143,7 @@ services:
       - auth-service
       - log-service
       - user-service
+      - payment-service
     ports:
       - "18080:8080"
 
@@ -185,6 +185,22 @@ services:
         condition: service_healthy
       rabbitmq:
         condition: service_healthy
+
+  payment-service:
+    build:
+      context: .
+      dockerfile: Dockerfile.service
+      args:
+        SERVICE_PATH: payment-service
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      PORT: 50055
+      LOG_SERVICE_URL: log-service:50052
+      RAIACCEPT_USERNAME: ${RAIACCEPT_USERNAME}
+      RAIACCEPT_PASSWORD: ${RAIACCEPT_PASSWORD}
+    depends_on:
+      - log-service
 
 volumes:
   postgres_data:

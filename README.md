@@ -35,6 +35,11 @@ flowchart LR
     AS[Auth Service\ngRPC :50051]
     LS[Log Service\ngRPC :50052]
     US[User Service\ngRPC :50053]
+    PS[Payment Service\ngRPC :50055]
+  end
+
+  subgraph External
+    RAI[RaiAccept API]
   end
 
   subgraph Messaging
@@ -57,6 +62,9 @@ flowchart LR
   AG -->|gRPC| AS
   AG -->|gRPC| LS
   AG -->|gRPC| US
+  AG -->|gRPC| PS
+
+  PS -->|HTTPS| RAI
 
   AS -->|publish| Q
   US -->|publish| Q
@@ -87,6 +95,7 @@ GRPC_app/
 ├── auth_service/         # Auth service (gRPC)
 ├── log-service/          # Log service (gRPC)
 ├── user-service/         # User service (gRPC)
+├── payment-service/      # Payment service (gRPC, RaiAccept integration)
 ├── web-bff/              # Web Backend-for-Frontend (HTTP)
 ├── mobile-bff/           # Mobile Backend-for-Frontend (HTTP)
 ├── web-frontend/         # React app (Vite)
@@ -100,6 +109,7 @@ GRPC_app/
 | Auth Service | [auth_service/ReadME.md](auth_service/ReadME.md) |
 | Log Service | [log-service/ReadME.md](log-service/ReadME.md) |
 | User Service | [user-service/ReadME.md](user-service/ReadME.md) |
+| Payment Service | [payment-service/ReadME.md](payment-service/ReadME.md) |
 | Web BFF | [web-bff/ReadME.md](web-bff/ReadME.md) |
 | Mobile BFF | [mobile-bff/ReadME.md](mobile-bff/ReadME.md) |
 | Proto Contracts | [proto-contracts/readME.md](proto-contracts/readME.md) |
@@ -135,11 +145,14 @@ GRPC_app/
 
 ### Mobile BFF
 - Talks to API Gateway over HTTP
-- Exposes mobile-facing routes under `/api/auth/*`
+- Exposes mobile-facing routes:
+  - `/api/auth/*`
+  - `/api/payments/*` — initiates and confirms RaiAccept card payments
 - Performs a small aggregation on login:
   - authenticate client
   - fetch recent client logs
   - return merged response
+- Builds RaiAccept callback URLs (`success`, `fail`, `cancel`) and webhook URL, then forwards to the Gateway
 
 ### API Gateway
 - Central HTTP entry for internal BFFs and external API tests
@@ -148,9 +161,17 @@ GRPC_app/
   - AuthService
   - LogService
   - UserService
+  - PaymentService
 - Supports both prefixed and non-prefixed route mounting:
   - `/auth`, `/logs`, `/users`
-  - `/api/auth`, `/api/logs`, `/api/users`
+  - `/api/auth`, `/api/logs`, `/api/users`, `/api/payments`
+
+### Payment Service (gRPC)
+- Owns all communication with the external RaiAccept payment API
+- Authenticates with RaiAccept via Amazon Cognito on every call
+- `InitiatePayment` — creates a RaiAccept order + checkout session and returns the hosted payment form URL
+- `ConfirmPayment` — polls RaiAccept for order status and returns `success` / order status string
+- Called exclusively by API Gateway; never reached directly by BFFs or frontends
 
 ### Auth Service (gRPC)
 - Client registration and login (`RegisterClient`, `LoginClient`)
@@ -198,6 +219,9 @@ Shared contracts live in `proto-contracts/proto` and are consumed by services th
 - `user.proto`
   - `ListUsers`, `RegisterUser`, `UpdateUser`, `DeleteUser`
   - `ListClients`, `UpdateClient`, `DeleteClient`
+- `payment.proto`
+  - `InitiatePayment` — start a card payment session, returns redirect URL and order ID
+  - `ConfirmPayment` — verify a completed payment by order ID, returns status
 
 These contracts define service boundaries and keep gateway/service integration consistent.
 
@@ -247,6 +271,20 @@ These contracts define service boundaries and keep gateway/service integration c
    - DELETE: `UserService.DeleteClient`
 5. User Service writes audit entries to Log Service
 
+### F) Mobile Payment Flow
+1. Flutter calls `POST /api/payments/initiate` on Mobile BFF with `{ amount }`
+2. Mobile BFF builds callback URLs and forwards to Gateway `POST /api/payments/initiate`
+3. Gateway (JWT-gated) calls gRPC `PaymentService.InitiatePayment`
+4. Payment Service authenticates with RaiAccept, creates order + checkout session
+5. Flutter receives `{ paymentFormUrl, raiOrderId }` and opens a WebView
+6. User completes card payment on the hosted RaiAccept page
+7. Flutter WebView intercepts the `success` callback URL and closes the WebView
+8. Flutter calls `POST /api/payments/confirm` on Mobile BFF with `{ raiOrderId, amount }`
+9. Mobile BFF forwards to Gateway `POST /api/payments/confirm`
+10. Gateway calls gRPC `PaymentService.ConfirmPayment` to verify the order status
+11. On confirmed payment, Gateway calls gRPC `UserService.AddBalance` to credit the client
+12. Success response travels back to Flutter
+
 ---
 
 ## 6) Ports and Endpoints
@@ -261,6 +299,12 @@ These contracts define service boundaries and keep gateway/service integration c
 - Auth health: `15051`
 - Log health: `15052`
 - User health: `15053`
+
+### Internal-Only Ports (Docker network, not host-mapped)
+- Auth Service gRPC: `50051`
+- Log Service gRPC: `50052`
+- User Service gRPC: `50053`
+- Payment Service gRPC: `50055`
 
 ### Typical Public HTTP Entry Points
 - Web frontend dev server: Vite local port (when running `npm run dev`)
@@ -300,9 +344,17 @@ Gateway uses:
 - `AUTH_SERVICE_URL=auth-service:50051`
 - `LOG_SERVICE_URL=log-service:50052`
 - `USER_SERVICE_URL=user-service:50053`
+- `PAYMENT_SERVICE_URL=payment-service:50055`
 
 Auth Service, User Service, and Log Service use:
 - `RABBITMQ_URL=amqp://app:secret@rabbitmq:5672`
+
+Payment Service uses:
+- `RAIACCEPT_USERNAME` / `RAIACCEPT_PASSWORD` — RaiAccept merchant credentials
+
+Mobile BFF uses:
+- `RAIACCEPT_WEBHOOK_URL` — public URL for RaiAccept server-to-server notifications
+- `RAIACCEPT_MOBILE_CALLBACK_BASE` — base URL intercepted by the Flutter WebView (e.g. `http://mobile.callback`)
 
 ### Web Frontend Config
 - `VITE_WEB_BFF_URL` (defaults to `http://localhost:3104`)

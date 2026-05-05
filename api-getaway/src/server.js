@@ -17,6 +17,7 @@ const healthRoutes = require('./routes/health');
 const currencyRoutes = require('./routes/add-currency');
 const balanceRoutes = require('./routes/set-balance');
 const clientBalanceRoutes = require('./routes/balance');
+const paymentRoutes = require('./routes/payments');
 
 const app = express();
 
@@ -42,6 +43,7 @@ app.use('/api/users', usersRoutes);
 app.use('/api/add-currency', currencyRoutes);
 app.use('/api/set-balance', balanceRoutes);
 app.use('/api/balance', clientBalanceRoutes);
+app.use('/api/payments', paymentRoutes);
 
 // 404 handler
 app.use((req, res) => {

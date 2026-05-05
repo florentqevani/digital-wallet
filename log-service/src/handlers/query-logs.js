@@ -2,7 +2,7 @@ const pool = require('../db');
 
 
 async function queryLogs(call, callback) {
-    const { actor_type, actor_id, from, to, page = 1, limit = 50 } = call.request;
+    const { actor_type, actor_id, action, from, to, page = 1, limit = 50 } = call.request;
 
     try {
         const conditions = [];
@@ -15,6 +15,14 @@ async function queryLogs(call, callback) {
         if (actor_id && actor_id !== '') {
             conditions.push('actor_id = $' + (params.length + 1));
             params.push(actor_id);
+        }
+        if (action && action !== '') {
+            if (action.includes('%')) {
+                conditions.push('action LIKE $' + (params.length + 1));
+            } else {
+                conditions.push('action = $' + (params.length + 1));
+            }
+            params.push(action);
         }
         const fromValue = Number(from);
         const toValue = Number(to);

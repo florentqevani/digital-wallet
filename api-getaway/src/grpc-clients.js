@@ -31,6 +31,9 @@ console.log(`✓ Log proto loaded`);
 const userProto = loadProto('user.proto');
 console.log(`✓ User proto loaded`);
 
+const paymentProto = loadProto('payment.proto');
+console.log(`✓ Payment proto loaded`);
+
 // Create gRPC clients
 const authClient = new authProto.auth.AuthService(
     config.authServiceUrl,
@@ -50,8 +53,15 @@ const userClient = new userProto.user.UserService(
 );
 console.log(`✓ User Service client connected to ${config.userServiceUrl}`);
 
+const paymentClient = new paymentProto.payment.PaymentService(
+    config.paymentServiceUrl,
+    grpc.credentials.createInsecure()
+);
+console.log(`✓ Payment Service client connected to ${config.paymentServiceUrl}`);
+
 module.exports = {
     authClient,
     logClient,
     userClient,
+    paymentClient,
 };

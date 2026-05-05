@@ -92,23 +92,6 @@ export default function AccountsPage() {
         }
     };
 
-    const handleSetBalance = async (clientId) => {
-        const amount = parseFloat(balanceInputs[clientId]);
-        if (isNaN(amount) || amount < 0) return;
-        setSettingBalanceIds((prev) => new Set(prev).add(clientId));
-        setBalanceResults((prev) => ({ ...prev, [clientId]: null }));
-        try {
-            const res = await setBalance(token, clientId, amount);
-            setBalanceResults((prev) => ({ ...prev, [clientId]: { success: res.success, message: res.message } }));
-            if (res.success) {
-                setAccounts((prev) => prev.map((a) => a.id === clientId ? { ...a, balance: amount } : a));
-            }
-        } catch (err) {
-            setBalanceResults((prev) => ({ ...prev, [clientId]: { success: false, message: err.message } }));
-        } finally {
-            setSettingBalanceIds((prev) => { const s = new Set(prev); s.delete(clientId); return s; });
-        }
-    };
 
     return (
         <main className="page-shell">
@@ -237,24 +220,14 @@ export default function AccountsPage() {
                                         </td>
                                         <td>
                                             <div style={{ display: 'flex', gap: '0.4rem', alignItems: 'center' }}>
-                                                <input
-                                                    type="number"
-                                                    min="0"
-                                                    step="0.01"
-                                                    value={balanceInputs[account.id] ?? '0'}
-                                                    onChange={(e) => setBalanceInputs((prev) => ({ ...prev, [account.id]: e.target.value }))}
-                                                    disabled={settingBalanceIds.has(account.id)}
-                                                    style={{ fontSize: '0.8rem', padding: '0.25rem 0.4rem', width: '100px' }}
-                                                />
-                                                <button
-                                                    type="button"
-                                                    className="button-muted"
-                                                    onClick={() => handleSetBalance(account.id)}
-                                                    disabled={settingBalanceIds.has(account.id)}
-                                                    style={{ fontSize: '0.75rem', padding: '0.25rem 0.5rem' }}
-                                                >
-                                                    {settingBalanceIds.has(account.id) ? '…' : 'Set'}
-                                                </button>
+                                                <span style={{
+                                                    fontFamily: "'JetBrains Mono', monospace",
+                                                    fontSize: '0.78rem',
+                                                    fontWeight: 600,
+                                                    padding: '0.2rem 0.5rem',
+                                                    background: 'var(--surface-raised, #f0f0f0)',
+                                                    borderRadius: '4px',
+                                                }}>{account.balance != null ? String(account.balance) : '0'}</span>
                                                 {balanceResults[account.id] && (
                                                     <span style={{ fontSize: '0.72rem', color: balanceResults[account.id].success ? 'var(--green)' : 'var(--red)' }}>
                                                         {balanceResults[account.id].success ? '✓' : '✗'}

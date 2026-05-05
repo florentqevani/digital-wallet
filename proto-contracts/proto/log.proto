@@ -26,6 +26,7 @@ message LogQuery {
   int64  to         = 4;  // Unix ms range end
   int32  page       = 5;
   int32  limit      = 6;
+  string action     = 7;  // exact match or prefix pattern (e.g. "PAYMENT%")
 }
 
 message LogEntry {

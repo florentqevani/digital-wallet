@@ -62,6 +62,30 @@ class _HomePageState extends State<HomePage> {
     }
   }
 
+  String _formatAction(String action) {
+    switch (action.toUpperCase()) {
+      case 'PAYMENT_COMPLETED':
+        return 'Payment Completed';
+      case 'LOGIN':
+        return 'Login';
+      case 'LOGOUT':
+        return 'Logout';
+      case 'REGISTER':
+        return 'Registration';
+      case 'UPDATE_PROFILE':
+        return 'Profile Updated';
+      default:
+        return action
+            .split('_')
+            .map(
+              (w) => w.isEmpty
+                  ? ''
+                  : '${w[0].toUpperCase()}${w.substring(1).toLowerCase()}',
+            )
+            .join(' ');
+    }
+  }
+
   void _showAddMoneyDialog() {
     final amountController = TextEditingController();
     // Dialog state is local — never touches _HomePageState fields
@@ -151,6 +175,9 @@ class _HomePageState extends State<HomePage> {
                         ),
                       );
                       if (paid == true && mounted) {
+                        // Refresh balance and activity log immediately
+                        widget.controller.fetchBalance();
+                        _triggerFetch(refresh: true);
                         setState(
                           () => _addMoneySuccess =
                               'Deposited ${NumberFormat('#,##0.00').format(amount)} ${widget.controller.currency}',
@@ -350,7 +377,7 @@ class _HomePageState extends State<HomePage> {
                                       ? AppColors.success
                                       : AppColors.danger,
                                 ),
-                                title: Text(item.action),
+                                title: Text(_formatAction(item.action)),
                                 subtitle: Text(
                                   item.message.isEmpty
                                       ? item.actorId

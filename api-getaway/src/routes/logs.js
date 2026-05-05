@@ -47,6 +47,7 @@ router.post('/query', apiLimiter, async (req, res) => {
         const response = await promisifyGRPC(logClient.QueryLogs.bind(logClient), {
             actor_type: actor_type || '',
             actor_id: actor_id || '',
+            action: req.body.action || '',
             from: from ? Number.parseInt(from, 10) : 0,
             to: to ? Number.parseInt(to, 10) : 0,
             page: Number.parseInt(page, 10) || 1,
@@ -190,6 +191,7 @@ router.get('/all', validateJWT(['user', 'superadmin']), async (req, res) => {
         const response = await promisifyGRPC(logClient.QueryLogs.bind(logClient), {
             actor_type: scopedActorType,
             actor_id: scopedActorId,
+            action: req.query.action || '',
             from: from ? Number.parseInt(from, 10) : 0,
             to: to ? Number.parseInt(to, 10) : 0,
             page: Number.parseInt(page, 10) || 1,
@@ -201,6 +203,33 @@ router.get('/all', validateJWT(['user', 'superadmin']), async (req, res) => {
         console.error('Error fetching all logs:', error.message);
         return res.status(500).json({
             error: 'Failed to fetch logs',
+            message: error.message,
+        });
+    }
+});
+
+// GET /logs/payments
+// Back-office: superadmin sees all clients' payment logs; user sees only their assigned clients.
+// Optional query params: actor_id, from, to, page, limit
+router.get('/payments', validateJWT(['user', 'superadmin']), async (req, res) => {
+    try {
+        const { actor_id, from, to, page = 1, limit = 50 } = req.query;
+
+        const response = await promisifyGRPC(logClient.QueryLogs.bind(logClient), {
+            actor_type: 'client',
+            actor_id: actor_id || '',
+            action: 'PAYMENT%',
+            from: from ? Number.parseInt(from, 10) : 0,
+            to: to ? Number.parseInt(to, 10) : 0,
+            page: Number.parseInt(page, 10) || 1,
+            limit: Math.min(Number.parseInt(limit, 10) || 50, 100),
+        });
+
+        return res.json(response);
+    } catch (error) {
+        console.error('Error fetching payment logs:', error.message);
+        return res.status(500).json({
+            error: 'Failed to fetch payment logs',
             message: error.message,
         });
     }
