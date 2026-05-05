@@ -1,23 +1,86 @@
 # Web BFF
 
-Backend for Frontend serving the back-office web application (React, Vue, etc).
+> Part of the [GRPC App](../README.md) platform.
 
-## What It Does
+The Web Backend-for-Frontend (BFF) is the HTTP server that sits between the React back-office and the API Gateway. It applies JWT verification locally and adds web-specific request shaping.
 
-Translates HTTP requests from the back-office web app into gRPC calls to microservices.
+---
 
-### Endpoints
+## Responsibilities
 
-#### POST /api/auth/login
-Login a back-office user (user or super-admin).
+- Receive HTTP requests from the React web-frontend
+- Verify JWTs locally (no extra round-trip)
+- Proxy requests to the API Gateway over HTTP
+- Shape responses for the web client
 
-Request:
-```json
-{
-  "email": "admin@example.com",
-  "password": "password123"
-}
+---
+
+## Port
+
+| Context | Port |
+|---|---|
+| Host (docker-compose) | `3104` |
+| Internal Docker network | `3004` |
+
+---
+
+## Routes
+
+| Method | Path | Forwards to |
+|---|---|---|
+| POST | `/api/auth/login` | `API_GATEWAY_URL/api/auth/login` |
+| POST | `/api/auth/register-user` | `API_GATEWAY_URL/api/auth/register-user` |
+| GET | `/api/users` | `API_GATEWAY_URL/api/users` |
+| PUT | `/api/users/:id` | `API_GATEWAY_URL/api/users/:id` |
+| DELETE | `/api/users/:id` | `API_GATEWAY_URL/api/users/:id` |
+| GET | `/api/clients` | `API_GATEWAY_URL/api/clients` |
+| PUT | `/api/clients/:id` | `API_GATEWAY_URL/api/clients/:id` |
+| DELETE | `/api/clients/:id` | `API_GATEWAY_URL/api/clients/:id` |
+| GET/POST | `/api/accounts` | `API_GATEWAY_URL/api/accounts` |
+| GET | `/api/logs` | `API_GATEWAY_URL/api/logs` |
+| GET | `/api/logs/dashboard` | `API_GATEWAY_URL/api/logs/dashboard` |
+| POST | `/api/add-currency` | `API_GATEWAY_URL/api/add-currency` |
+| POST | `/api/set-balance` | `API_GATEWAY_URL/api/set-balance` |
+| GET | `/health` | local health response |
+
+---
+
+## Environment Variables
+
+| Variable | Description | Default |
+|---|---|---|
+| `PORT` | HTTP listen port | `3001` |
+| `API_GATEWAY_URL` | Base URL of the API Gateway | `http://api-gateway:8080` |
+| `AUTH_SERVICE_URL` | Auth service gRPC address (for direct calls if needed) | `localhost:50051` |
+| `JWT_SECRET` | Shared JWT signing secret (local verification) | — |
+
+---
+
+## Local Development
+
+```bash
+cd web-bff
+npm install
+cp .env.example .env
+# Edit .env — set API_GATEWAY_URL and JWT_SECRET
+npm start
 ```
+
+With Docker Compose (recommended):
+
+```bash
+docker compose up web-bff
+```
+
+---
+
+## Health Check
+
+```
+GET http://localhost:3104/health
+```
+
+Returns `{ "status": "ok" }`.
 
 Response:
 ```json

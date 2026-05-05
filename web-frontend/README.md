@@ -1,31 +1,77 @@
 # Web Frontend
 
-Back-office web application for user and superadmin log monitoring.
+> Part of the [GRPC App](../README.md) platform.
 
-## Features
+React back-office SPA (Vite + React Router). Provides the interface for back-office users and superadmins to manage users, clients, and audit logs.
 
-- JWT login via Web BFF
-- Role-aware routing
-- User log view (`/my-logs`)
-- Superadmin dashboard (`/dashboard`)
-- Queryable all-logs panel for superadmins
+---
 
-## Run Locally
+## Pages
 
-1. Install dependencies:
+| Path | Component | Access |
+|---|---|---|
+| `/` | Redirect to login | — |
+| `/login` | `LoginPage` | Public |
+| `/dashboard` | `AdminDashboardPage` | superadmin |
+| `/user-management` | `UserManagementPage` | superadmin |
+| `/accounts` | `AccountsPage` | user / superadmin |
+| `/my-logs` | `MyLogsPage` | user / superadmin |
+| `*` | `NotFoundPage` | — |
 
-   npm install
+---
 
-2. Configure environment:
+## How It Connects
 
-   copy .env.example .env
+All API calls go to the **Web BFF** (`http://localhost:3104` by default):
 
-3. Start dev server:
+```
+React SPA → Web BFF (HTTP :3104) → API Gateway (HTTP :8080) → gRPC services
+```
 
-   npm run dev
+The JWT is stored in `localStorage` after login and sent as a `Bearer` token on every subsequent request.
 
-By default the app expects Web BFF at `http://localhost:3104`.
+---
 
-## Build
+## Auth and Role-Based Routing
+
+- `ProtectedRoute` component checks for a valid token in `localStorage`
+- Routes guarded by role: `superadmin`-only routes redirect `user` role to `/my-logs`
+- On token expiry or 401 response, the app clears session and redirects to `/login`
+
+---
+
+## Tech Stack
+
+| Library | Purpose |
+|---|---|
+| React 18 | UI framework |
+| React Router v6 | Client-side routing |
+| Vite 5 | Dev server and build tool |
+
+---
+
+## Environment Variables
+
+| Variable | Description | Default |
+|---|---|---|
+| `VITE_WEB_BFF_URL` | Web BFF base URL | `http://localhost:3104` |
+
+---
+
+## Local Development
+
+```bash
+cd web-frontend
+npm install
+# Optional: set VITE_WEB_BFF_URL in .env if BFF runs on a different port
+npm run dev
+```
+
+Production build:
+
+```bash
+npm run build
+npm run preview
+```
 
 npm run build

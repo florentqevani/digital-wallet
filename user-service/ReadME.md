@@ -1,52 +1,117 @@
 # User Service
 
-gRPC microservice for role management, user CRUD, and client CRUD.
+> Part of the [GRPC App](../README.md) platform.
 
-## What It Does
+gRPC microservice responsible for managing back-office users and mobile clients. It is the source of truth for user profiles, roles, balances, and currency settings.
 
-- **ListUsers** — List all back-office users with their roles
-- **RegisterUser** — Create a new back-office user with a specified role (`user` or `superadmin`)
-- **UpdateUser** — Update a user's email, name, role, or password
-- **DeleteUser** — Remove a back-office user
-- **ListClients** — List all mobile app clients
-- **UpdateClient** — Update a client's email, name, or password
-- **DeleteClient** — Remove a mobile app client
+---
 
-> Role data is owned by this service. Roles and permissions are embedded into JWTs by Auth Service at login time.
+## Responsibilities
 
-Audit events for mutating operations are published fire-and-forget to the `service-logs` RabbitMQ queue.
+- CRUD operations on back-office **users** (superadmin-only)
+- CRUD operations on mobile **clients**
+- Currency and balance management per client account
+- Publish audit events to the `service-logs` queue after mutations
 
-## Local Development
+---
 
-### Setup
+## gRPC Port
 
-```bash
-npm install
-cp .env.example .env
-# Edit .env with your database URL and log service address
-```
+| Context | Port |
+|---|---|
+| Internal Docker network | `50053` |
+| Health HTTP (host) | `15053` |
 
-### Run
+---
 
-```bash
-npm start
-# Or with auto-reload:
-npm run dev
-```
+## RPC Methods (`user.proto`)
 
-### With Docker Compose
+### User Management (back-office users)
 
-```bash
-docker-compose up user-service
-```
+| Method | Description | Caller role |
+|---|---|---|
+| `ListUsers` | Return all back-office users | superadmin |
+| `RegisterUser` | Create a back-office user | superadmin |
+| `UpdateUser` | Update email / name / role / password | superadmin |
+| `DeleteUser` | Remove a back-office user | superadmin |
+
+### Client Management (mobile users)
+
+| Method | Description |
+|---|---|
+| `ListClients` | Return all clients with balance and currency |
+| `UpdateClient` | Update email / name / password for a client |
+| `DeleteClient` | Remove a client |
+
+### Account / Balance
+
+| Method | Description |
+|---|---|
+| `SetCurrency` | Set the currency for a client account |
+| `SetBalance` | Overwrite the balance for a client account |
+| `AddBalance` | Increment the balance (called after payment confirmation) |
+| `GetClientBalance` | Return current balance and currency |
+
+---
 
 ## Database
 
-Uses PostgreSQL (`auth_db`). Tables:
-- `users` — back-office users with role `user` or `superadmin`
-- `clients` — mobile app users
+Shares `auth_db` with Auth Service and Account Service.
 
-## Configuration
+| Table | Operations |
+|---|---|
+| `users` | SELECT, INSERT, UPDATE, DELETE |
+| `clients` | SELECT, UPDATE, DELETE (accounts joined) |
+
+---
+
+## RabbitMQ
+
+Publishes audit events to:
+
+| Queue | Purpose |
+|---|---|
+| `service-logs` | Consumed by Log Service to write audit records |
+
+---
+
+## Environment Variables
+
+| Variable | Description | Default |
+|---|---|---|
+| `PORT` | gRPC listen port | `50053` |
+| `HEALTH_PORT` | HTTP health port | `15053` |
+| `AUTH_DB_URL` | PostgreSQL connection string for `auth_db` | — |
+| `LOG_SERVICE_URL` | Log service gRPC address | `localhost:50052` |
+| `RABBITMQ_URL` | RabbitMQ connection string | — |
+
+---
+
+## Local Development
+
+```bash
+cd user-service
+npm install
+cp .env.example .env
+# Edit .env — set AUTH_DB_URL and RABBITMQ_URL
+npm start
+```
+
+With Docker Compose (recommended):
+
+```bash
+docker compose up user-service
+```
+
+---
+
+## Health Check
+
+```
+GET http://localhost:15053/health
+```
+
+Returns `{ "status": "ok", "service": "user-service" }`.
 
 | Variable | Description | Default |
 |---|---|---|

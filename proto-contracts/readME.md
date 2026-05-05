@@ -1,53 +1,111 @@
 # Proto Contracts
 
-Shared gRPC protocol buffer definitions for all MyApp microservices.
+> Part of the [GRPC App](../README.md) platform.
+
+Shared gRPC Protobuf definitions for all Node.js microservices. Published as a local npm package (`@myapp/proto-contracts`) installed by each service that needs to make or serve gRPC calls.
+
+---
 
 ## Structure
 
-\`\`\`
+```
 proto-contracts/
-├── package.json          ← Makes this an npm package
-├── index.js             ← Helper functions
-├── proto/
-│   ├── auth.proto       ← AuthService definition
-│   └── log.proto        ← LogService definition
-└── README.md
-\`\`\`
+├── package.json          ← npm package: @myapp/proto-contracts
+├── index.js              ← helper to resolve proto file paths
+└── proto/
+    ├── auth.proto        ← AuthService
+    ├── log.proto         ← LogService
+    ├── user.proto        ← UserService
+    └── payment.proto     ← PaymentService
+```
 
-## Usage in Other Projects
+---
 
-### Installation
+## Contracts
 
-Each service that needs to call gRPC services should install this package:
+### `auth.proto` — AuthService
 
-\`\`\`bash
+| RPC | Request | Response |
+|---|---|---|
+| `RegisterClient` | `RegisterRequest` | `AuthResponse` |
+| `LoginClient` | `LoginRequest` | `AuthResponse` |
+| `LoginUser` | `LoginRequest` | `AuthResponse` |
+| `ValidateToken` | `ValidateRequest` | `ValidateResponse` |
+| `CreateToken` | `CreateTokenRequest` | `CreateTokenResponse` |
+
+### `user.proto` — UserService
+
+| RPC | Description |
+|---|---|
+| `ListUsers` / `RegisterUser` / `UpdateUser` / `DeleteUser` | Back-office user CRUD |
+| `ListClients` / `UpdateClient` / `DeleteClient` | Mobile client CRUD |
+| `SetCurrency` / `SetBalance` / `AddBalance` / `GetClientBalance` | Account & balance management |
+
+### `log.proto` — LogService
+
+| RPC | Description |
+|---|---|
+| `WriteLog` | Insert a single audit entry |
+| `QueryLogs` | Query entries with filters (actor, date range, action, pagination) |
+
+### `payment.proto` — PaymentService
+
+| RPC | Description |
+|---|---|
+| `InitiatePayment` | Create a RaiAccept order + checkout session |
+| `ConfirmPayment` | Check order status by `rai_order_id` |
+
+---
+
+## Installing in a Service
+
+```bash
 npm install file:../proto-contracts
-\`\`\`
+```
 
-### Loading Proto Files
+Or via `package.json`:
 
-In your Node.js service:
+```json
+"@myapp/proto-contracts": "file:../proto-contracts"
+```
 
-\`\`\`javascript
-const proto = require('@grpc/proto-loader');
-const protoContracts = require('@myapp/proto-contracts');
+---
 
-// Load the auth.proto file
-const protoPath = protoContracts.loadProto('auth.proto');
-const packageDefinition = proto.loadSync(protoPath, {
+## Using Proto Files in Node.js
+
+```js
+const protoLoader = require('@grpc/proto-loader');
+const path = require('node:path');
+
+const protoPath = path.join(
+  __dirname,
+  '../node_modules/@myapp/proto-contracts/proto/auth.proto'
+);
+
+const packageDefinition = protoLoader.loadSync(protoPath, {
   keepCase: true,
   longs: String,
   enums: String,
   defaults: true,
-  oneofs: true
+  oneofs: true,
 });
-\`\`\`
+```
+
+---
 
 ## When to Update
 
-Update this package when:
+Update the `.proto` files here when:
+
 - Adding a new gRPC service
-- Adding a new RPC method
+- Adding a new RPC method to an existing service
+- Changing message fields
+
+After updating, reinstall the package in every affected service:
+
+```bash
+npm install file:../proto-contracts
+```
 - Changing message structure (carefully!)
 
 ## Backward Compatibility Rules

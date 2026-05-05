@@ -1,15 +1,33 @@
-# GRPC App 
+# GRPC App
 
-A multi-service gRPC + HTTP system with two client experiences:
+A production-grade microservices platform with two client experiences:
 
-- Web backoffice (React + Web BFF)
-- Mobile app (Flutter + Mobile BFF)
+- **Web back-office** — React (Vite) + Web BFF
+- **Mobile app** — Flutter + Mobile BFF
 
-The platform is built around a strict service chain:
+Every request follows a strict chain:
 
-- Frontend -> BFF -> API Gateway -> gRPC microservices -> PostgreSQL
+```
+Frontend → BFF → API Gateway → gRPC microservice → PostgreSQL / RabbitMQ
+```
 
-This README focuses on how everything is connected and how requests move through the system.
+---
+
+## Service READMEs
+
+| Service | Description |
+|---|---|
+| [proto-contracts](proto-contracts/readME.md) | Shared Protobuf definitions (npm package) |
+| [api-gateway](api-getaway/README.md) | HTTP edge — routes requests to gRPC services |
+| [auth-service](auth_service/ReadME.md) | JWT auth — register, login, validate tokens |
+| [user-service](user-service/README.md) | Back-office user & client management |
+| [account-service](account-service/README.md) | Async account provisioning via RabbitMQ |
+| [payment-service](payment-service/README.md) | Payment initiation & confirmation via RaiAccept |
+| [log-service](log-service/ReadME.md) | Centralised audit log — gRPC + RabbitMQ consumer |
+| [web-bff](web-bff/ReadME.md) | Backend-for-Frontend for the React web app |
+| [mobile-bff](mobile-bff/ReadME.md) | Backend-for-Frontend for the Flutter mobile app |
+| [web-frontend](web-frontend/README.md) | React back-office SPA |
+| [mobile-frontend](mobile_frontend/README.md) | Flutter mobile app |
 
 ---
 
@@ -35,6 +53,7 @@ flowchart LR
     AS[Auth Service\ngRPC :50051]
     LS[Log Service\ngRPC :50052]
     US[User Service\ngRPC :50053]
+    ACS[Account Service\nno port - RMQ only]
     PS[Payment Service\ngRPC :50055]
   end
 
@@ -44,7 +63,8 @@ flowchart LR
 
   subgraph Messaging
     RMQ[RabbitMQ\n:5672 / UI :15672]
-    Q[[service-logs queue]]
+    SL[[service-logs queue]]
+    CR[[client-registered queue]]
   end
 
   subgraph Data
@@ -66,13 +86,17 @@ flowchart LR
 
   PS -->|HTTPS| RAI
 
-  AS -->|publish| Q
-  US -->|publish| Q
-  Q --- RMQ
+  AS -->|publish| SL
+  AS -->|publish| CR
+  US -->|publish| SL
+  SL --- RMQ
+  CR --- RMQ
   RMQ -->|consume| LS
+  RMQ -->|consume| ACS
 
   AS --> ADB
   US --> ADB
+  ACS --> ADB
   LS --> LDB
 
   P --- ADB
@@ -85,36 +109,20 @@ flowchart LR
 
 ```text
 GRPC_app/
-├── docker-compose.yml
-├── Dockerfile.service
-├── docker/
-│   └── postgres-init/
-│       └── 01-create-databases.sql
-├── proto-contracts/      # Shared proto definitions + npm package
-├── api-getaway/          # API Gateway (HTTP -> gRPC)
-├── auth_service/         # Auth service (gRPC)
-├── log-service/          # Log service (gRPC)
-├── user-service/         # User service (gRPC)
-├── payment-service/      # Payment service (gRPC, RaiAccept integration)
-├── web-bff/              # Web Backend-for-Frontend (HTTP)
-├── mobile-bff/           # Mobile Backend-for-Frontend (HTTP)
-├── web-frontend/         # React app (Vite)
-└── mobile_frontend/      # Flutter app
+├── docker-compose.yml        ← Orchestrates all services
+├── Dockerfile.service        ← Single shared Dockerfile for Node services
+├── proto-contracts/          ← Shared .proto files + npm package
+├── api-getaway/              ← API Gateway (HTTP → gRPC)
+├── auth_service/             ← Auth gRPC service
+├── account-service/          ← Account provisioning (RabbitMQ consumer only)
+├── user-service/             ← User & client management gRPC service
+├── payment-service/          ← Payment gRPC service (RaiAccept)
+├── log-service/              ← Audit log gRPC service + RMQ consumer
+├── web-bff/                  ← Web Backend-for-Frontend (HTTP)
+├── mobile-bff/               ← Mobile Backend-for-Frontend (HTTP)
+├── web-frontend/             ← React back-office (Vite)
+└── mobile_frontend/          ← Flutter mobile app
 ```
-
-### Service Documentation
-
-| Component | README |
-|---|---|
-| Auth Service | [auth_service/ReadME.md](auth_service/ReadME.md) |
-| Log Service | [log-service/ReadME.md](log-service/ReadME.md) |
-| User Service | [user-service/ReadME.md](user-service/ReadME.md) |
-| Payment Service | [payment-service/ReadME.md](payment-service/ReadME.md) |
-| Web BFF | [web-bff/ReadME.md](web-bff/ReadME.md) |
-| Mobile BFF | [mobile-bff/ReadME.md](mobile-bff/ReadME.md) |
-| Proto Contracts | [proto-contracts/readME.md](proto-contracts/readME.md) |
-| Web Frontend | [web-frontend/README.md](web-frontend/README.md) |
-| Mobile Frontend | [mobile_frontend/README.md](mobile_frontend/README.md) |
 
 ---
 
