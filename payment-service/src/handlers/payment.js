@@ -10,7 +10,6 @@ const PAID_STATUSES = new Set(['SUCCESS', 'PAID']);
 // InitiatePayment
 async function initiatePayment(call, callback) {
     const {
-        client_id = 'unknown',
         amount,
         merchant_order_reference,
         success_url,
