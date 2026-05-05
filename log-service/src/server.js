@@ -38,13 +38,13 @@ server.bindAsync(
     grpc.ServerCredentials.createInsecure(),
     (err, port) => {
         if (err) {
-            console.error('❌ Failed to start server:', err);
+            console.error('Failed to start server:', err);
             process.exit(1);
         }
-        console.log(`🚀 Log Service listening on port ${port}`);
+        console.log(`Log Service listening on port ${port}`);
 
         // Start RabbitMQ consumer — handles its own reconnect loop internally
-        startConsumer().catch(err => console.error('❌ Consumer error:', err.message));
+        startConsumer().catch(err => console.error('Consumer error:', err.message));
     }
 );
 
@@ -60,22 +60,12 @@ const healthServer = http.createServer((req, res) => {
 });
 
 healthServer.listen(healthPort, () => {
-    console.log(`🩺 Log health endpoint listening on port ${healthPort}`);
+    console.log(`Log health endpoint listening on port ${healthPort}`);
 });
 
 // Graceful shutdown
 process.on('SIGTERM', () => {
     console.log('SIGTERM received, shutting down gracefully');
-    healthServer.close(() => {
-        server.tryShutdown(() => {
-            console.log('Server shut down');
-            process.exit(0);
-        });
-    });
-});
-
-process.on('SIGINT', () => {
-    console.log('SIGINT received, shutting down gracefully');
     healthServer.close(() => {
         server.tryShutdown(() => {
             console.log('Server shut down');

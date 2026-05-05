@@ -39,3 +39,20 @@ server.bindAsync(
         console.log(`\n Payment Service gRPC listening on port ${port}`);
     }
 );
+
+//health check endpoint
+server.addService(payment.HealthCheckService.service, {
+    Check: (call, callback) => {
+        callback(null, { status: 'SERVING' });
+    },
+});
+
+// Graceful shutdown
+process.on('SIGINT', () => {
+    console.log('\nShutting down Payment Service...');
+    server.tryShutdown(() => {
+        console.log('Payment Service stopped.');
+        process.exit(0);
+    });
+});
+

@@ -42,10 +42,10 @@ server.bindAsync(
     grpc.ServerCredentials.createInsecure(),
     (err, port) => {
         if (err) {
-            console.error('❌ Failed to start server:', err);
+            console.error('Failed to start server:', err);
             process.exit(1);
         }
-        console.log(`🚀 Auth Service listening on port ${port}`);
+        console.log(`Auth Service listening on port ${port}`);
     }
 );
 
@@ -61,22 +61,12 @@ const healthServer = http.createServer((req, res) => {
 });
 
 healthServer.listen(healthPort, () => {
-    console.log(`🩺 Auth health endpoint listening on port ${healthPort}`);
+    console.log(`Auth health endpoint listening on port ${healthPort}`);
 });
 
 // Graceful shutdown
 process.on('SIGTERM', () => {
     console.log('SIGTERM received, shutting down gracefully');
-    healthServer.close(() => {
-        server.tryShutdown(() => {
-            console.log('Server shut down');
-            process.exit(0);
-        });
-    });
-});
-
-process.on('SIGINT', () => {
-    console.log('SIGINT received, shutting down gracefully');
     healthServer.close(() => {
         server.tryShutdown(() => {
             console.log('Server shut down');

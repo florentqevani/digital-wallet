@@ -4,14 +4,14 @@ const { startConsumer } = require('./rabbitmq/rmq-consumer');
 const { startConsumer: startCurrencyConsumer } = require('./rabbitmq/rmq-currency');
 
 async function main() {
-    console.log(`\n🚀 Account Service starting (env: ${config.nodeEnv})`);
+    console.log(`Account Service starting (env: ${config.nodeEnv})`);
 
     await startConsumer();
     await startCurrencyConsumer();
 }
 
 main().catch((err) => {
-    console.error('❌ Account Service fatal error:', err.message);
+    console.error('Account Service fatal error:', err.message);
     process.exit(1);
 });
 

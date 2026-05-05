@@ -51,10 +51,10 @@ server.bindAsync(
     grpc.ServerCredentials.createInsecure(),
     (err, port) => {
         if (err) {
-            console.error('❌ Failed to start user-service:', err);
+            console.error('Failed to start user-service:', err);
             process.exit(1);
         }
-        console.log(`🚀 User Service listening on port ${port}`);
+        console.log(`User Service listening on port ${port}`);
     }
 );
 

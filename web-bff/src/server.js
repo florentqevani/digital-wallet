@@ -48,7 +48,7 @@ app.use((req, res) => {
 
 // Error handler
 app.use((err, req, res, next) => {
-    console.error('❌ Unhandled error:', err.message);
+    console.error('Unhandled error:', err.message);
     res.status(500).json({
         error: 'Internal server error',
         message: err.message,
@@ -57,7 +57,7 @@ app.use((err, req, res, next) => {
 
 // Start server
 const server = app.listen(config.port, () => {
-    console.log(`\n🚀 Web BFF listening on port ${config.port}`);
+    console.log(`   Web BFF listening on port ${config.port}`);
     console.log(`   HTTP: http://localhost:${config.port}`);
     console.log(`   Health: http://localhost:${config.port}/health\n`);
 });

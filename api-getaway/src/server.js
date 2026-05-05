@@ -55,7 +55,7 @@ app.use((req, res) => {
 
 // Error handler
 app.use((err, req, res, next) => {
-    console.error('❌ Unhandled error:', err.message);
+    console.error('Unhandled error:', err.message);
     res.status(500).json({
         error: 'Internal server error',
         message: err.message,
@@ -64,7 +64,7 @@ app.use((err, req, res, next) => {
 
 // Start server
 const server = app.listen(config.port, () => {
-    console.log(`\n🚀 API Gateway listening on port ${config.port}`);
+    console.log(`\n API Gateway listening on port ${config.port}`);
     console.log(`   HTTP: http://localhost:${config.port}`);
     console.log(`   Health: http://localhost:${config.port}/health\n`);
 });
@@ -72,14 +72,6 @@ const server = app.listen(config.port, () => {
 // Graceful shutdown
 process.on('SIGTERM', () => {
     console.log('SIGTERM received, shutting down gracefully');
-    server.close(() => {
-        console.log('Server shut down');
-        process.exit(0);
-    });
-});
-
-process.on('SIGINT', () => {
-    console.log('SIGINT received, shutting down gracefully');
     server.close(() => {
         console.log('Server shut down');
         process.exit(0);
