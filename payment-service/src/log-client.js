@@ -1,89 +1,55 @@
 'use strict';
 
-// Fire-and-forget gRPC log writer — mirrors user-service/src/log-queue.js
+// Fire-and-forget RabbitMQ log publisher.
+// Publishes to the shared 'service-logs' queue consumed by log-service.
+// Payment operations are never blocked by log-service availability.
 
-const grpc = require('@grpc/grpc-js');
-const protoLoader = require('@grpc/proto-loader');
-const path = require('path');
-const config = require('./config');
+const amqp = require('amqplib');
 
-const protoPath = path.join(
-    __dirname,
-    '../node_modules/@myapp/proto-contracts/proto/log.proto'
+const AMQP_URL = process.env.RABBITMQ_URL || 'amqp://app:secret@rabbitmq:5672';
+const QUEUE = 'service-logs';
+
+let _channel = null;
+
+async function _ensureChannel() {
+    if (_channel) return _channel;
+    const conn = await amqp.connect(AMQP_URL);
+    const ch = await conn.createChannel();
+    await ch.assertQueue(QUEUE, { durable: true });
+    conn.on('error', () => { _channel = null; });
+    conn.on('close', () => { _channel = null; });
+    _channel = ch;
+    console.log('[PaymentLogProducer] RabbitMQ channel ready');
+    return ch;
+}
+
+_ensureChannel().catch(err =>
+    console.warn('[PaymentLogProducer] Initial connect failed (will retry on next write):', err.message)
 );
-
-const packageDef = protoLoader.loadSync(protoPath, {
-    keepCase: true,
-    longs: String,
-    enums: String,
-    defaults: true,
-    oneofs: true,
-});
-
-const { log } = grpc.loadPackageDefinition(packageDef);
-
-const logClient = new log.LogService(
-    config.logServiceUrl,
-    grpc.credentials.createInsecure()
-);
-
-const MAX_RETRIES = 20;
-const RETRY_INTERVAL_MS = 5000;
-const MAX_SIZE = 500;
-
-let _queue = [];
-let _timer = null;
-
-function _attempt(payload) {
-    return new Promise((resolve, reject) => {
-        logClient.WriteLog(payload, (err) => {
-            if (err) reject(err);
-            else resolve();
-        });
-    });
-}
-
-async function _drain() {
-    if (_queue.length === 0) {
-        clearInterval(_timer);
-        _timer = null;
-        return;
-    }
-    const pending = _queue.splice(0);
-    for (const item of pending) {
-        try {
-            await _attempt(item.payload);
-        } catch {
-            item.retries += 1;
-            if (item.retries < MAX_RETRIES) {
-                _queue.push(item);
-            } else {
-                console.error(`[PaymentLogQueue] Dropping entry after ${MAX_RETRIES} retries:`, item.payload.action);
-            }
-        }
-    }
-}
-
-function _schedule() {
-    if (_timer) return;
-    _timer = setInterval(_drain, RETRY_INTERVAL_MS);
-}
 
 /**
- * Write a payment log entry (fire-and-forget with in-memory retry).
+ * Publish a payment log entry (fire-and-forget via RabbitMQ).
  * @param {object} payload - { actor_id, actor_type, action, status, message }
  */
 function writeLog(payload) {
-    const entry = { ...payload, timestamp: Date.now() };
-    _attempt(entry).catch(() => {
-        if (_queue.length >= MAX_SIZE) {
-            console.warn('[PaymentLogQueue] Queue full, dropping:', payload.action);
-            return;
-        }
-        _queue.push({ payload: entry, retries: 0 });
-        _schedule();
-        console.warn(`[PaymentLogQueue] Log-service unavailable — queued (${_queue.length} pending): ${payload.action}`);
-    });
+    const entry = { ...payload, timestamp: payload.timestamp || Date.now() };
+    _ensureChannel()
+        .then(ch =>
+            ch.sendToQueue(QUEUE, Buffer.from(JSON.stringify(entry)), { persistent: true })
+        )
+        .catch(err =>
+            console.error('[PaymentLogProducer] Failed to publish log:', err.message, '| action:', entry.action)
+        );
 }
+
+async function shutdown() {
+    if (_channel) {
+        try { await _channel.close(); } catch (_) { }
+        _channel = null;
+    }
+}
+
+process.on('SIGTERM', shutdown);
+process.on('SIGINT', shutdown);
 
 module.exports = { writeLog };

@@ -92,8 +92,6 @@ services:
     environment:
       NODE_ENV: production
       PORT: 3002
-      AUTH_SERVICE_URL: auth-service:50051
-      LOG_SERVICE_URL: log-service:50052
       API_GATEWAY_URL: http://api-gateway:8080
       RAIACCEPT_WEBHOOK_URL: ${RAIACCEPT_WEBHOOK_URL}
       RAIACCEPT_MOBILE_CALLBACK_BASE: ${RAIACCEPT_MOBILE_CALLBACK_BASE}
@@ -112,8 +110,6 @@ services:
     environment:
       NODE_ENV: production
       PORT: 3004
-      AUTH_SERVICE_URL: auth-service:50051
-      LOG_SERVICE_URL: log-service:50052
       API_GATEWAY_URL: http://api-gateway:8080
       JWT_SECRET: ${JWT_SECRET}
     depends_on:
@@ -196,11 +192,12 @@ services:
     environment:
       NODE_ENV: production
       PORT: 50055
-      LOG_SERVICE_URL: log-service:50052
+      RABBITMQ_URL: amqp://${RABBITMQ_USER}:${RABBITMQ_PASS}@rabbitmq:5672
       RAIACCEPT_USERNAME: ${RAIACCEPT_USERNAME}
       RAIACCEPT_PASSWORD: ${RAIACCEPT_PASSWORD}
     depends_on:
-      - log-service
+      rabbitmq:
+        condition: service_healthy
 
 volumes:
   postgres_data:

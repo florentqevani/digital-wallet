@@ -82,8 +82,15 @@ router.get('/payments', async (req, res) => {
             },
         });
 
+        const logs = (response.logs || []).map(entry => {
+            const match = entry.message && entry.message.match(/Total:\s*([\d.]+)\s*([A-Z]*)/);
+            return match
+                ? { ...entry, paid_total: `${match[1]} ${match[2]}`.trim() }
+                : entry;
+        });
+
         return res.json({
-            logs: response.logs || [],
+            logs,
             page,
             limit,
             total: response.total || 0,

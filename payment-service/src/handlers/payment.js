@@ -74,13 +74,16 @@ async function confirmPayment(call, callback) {
         const raiToken = await rai.authenticate();
         const orderDetails = await rai.getOrderDetails(raiToken, rai_order_id);
         const isPaid = PAID_STATUSES.has(orderDetails.status);
+        const amount = orderDetails.invoice?.amount ?? orderDetails.amount ?? '';
+        const currency = orderDetails.invoice?.currency ?? orderDetails.currency ?? '';
+        const totalPart = amount !== '' ? ` | Total: ${amount} ${currency}`.trim() : '';
 
         writeLog({
             actor_id: client_id,
             actor_type: 'client',
             action: 'PAYMENT_COMPLETED',
             status: isPaid ? 'SUCCESS' : 'ERROR',
-            message: `Order ${rai_order_id} status: ${orderDetails.status}`,
+            message: `Order ${rai_order_id}${totalPart} | Status: ${orderDetails.status}`,
         });
 
         callback(null, {

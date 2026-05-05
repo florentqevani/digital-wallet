@@ -2,6 +2,7 @@
 
 const grpc = require('@grpc/grpc-js');
 const protoLoader = require('@grpc/proto-loader');
+const http = require('http');
 const path = require('path');
 const config = require('./config');
 const { initiatePayment, confirmPayment } = require('./handlers/payment');
@@ -40,19 +41,40 @@ server.bindAsync(
     }
 );
 
-//health check endpoint
-server.addService(payment.HealthCheckService.service, {
-    Check: (call, callback) => {
-        callback(null, { status: 'SERVING' });
-    },
+// HTTP health check endpoint
+const healthPort = Number(process.env.HEALTH_PORT || 15055);
+const healthServer = http.createServer((req, res) => {
+    if (req.url === '/health') {
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ status: 'ok', service: 'payment-service' }));
+        return;
+    }
+    res.writeHead(404, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify({ error: 'Not found' }));
+});
+
+healthServer.listen(healthPort, () => {
+    console.log(`Payment Service health endpoint listening on port ${healthPort}`);
 });
 
 // Graceful shutdown
+process.on('SIGTERM', () => {
+    console.log('SIGTERM received, shutting down gracefully');
+    healthServer.close(() => {
+        server.tryShutdown(() => {
+            console.log('Payment Service stopped.');
+            process.exit(0);
+        });
+    });
+});
+
 process.on('SIGINT', () => {
     console.log('\nShutting down Payment Service...');
-    server.tryShutdown(() => {
-        console.log('Payment Service stopped.');
-        process.exit(0);
+    healthServer.close(() => {
+        server.tryShutdown(() => {
+            console.log('Payment Service stopped.');
+            process.exit(0);
+        });
     });
 });
 

@@ -151,7 +151,7 @@ async function DeleteUser(call, callback) {
             return callback(null, { success: false, message: 'User not found' });
         }
 
-        writeLog({
+        createEvent({
             actor_id: deleted_by || id,
             actor_type: 'superadmin',
             action: 'DELETE_USER',
@@ -162,7 +162,7 @@ async function DeleteUser(call, callback) {
 
         callback(null, { success: true, message: 'User deleted successfully' });
     } catch (error) {
-        writeLog({
+        createEvent({
             actor_id: deleted_by || id,
             actor_type: 'superadmin',
             action: 'DELETE_USER',
