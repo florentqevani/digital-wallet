@@ -177,4 +177,3 @@ npm run dev
 docker-compose up web-bff
 ```
 
-## Architecture
