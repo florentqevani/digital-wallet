@@ -2,7 +2,75 @@
 
 > Part of the [GRPC App](../README.md) platform.
 
-Flutter mobile application for end-users (clients). Supports registration, login, balance/activity viewing, and card payments via an embedded WebView.
+Flutter mobile application for end-users (clients). Supports registration, login, balance viewing, activity/transaction history, and peer-to-peer money transfers.
+
+---
+
+## Features
+
+| Screen | Description |
+|---|---|
+| Register | Create a new client account |
+| Login | Authenticate and persist session (JWT in SharedPreferences) |
+| Home — Balance Card | Shows "Signed in as [name]", current balance, and Send Money shortcut |
+| Home — Activity Tab | Paginated audit log with infinite scroll and pull-to-refresh |
+| Home — Transactions Tab | Transfer history with credit/debit colour coding and pull-to-refresh |
+| Send Money Dialog | Peer-to-peer transfer by recipient email with inline validation |
+
+---
+
+## How It Connects
+
+All API calls go to the **Mobile BFF** (`http://10.0.2.2:3002` on Android emulator):
+
+```
+Flutter app → Mobile BFF (HTTP :3002) → API Gateway (HTTP :8080) → gRPC services
+```
+
+The JWT is stored in `SharedPreferences` after login and sent as a `Bearer` token on every subsequent request. The client name is decoded directly from the JWT payload (no extra API call).
+
+---
+
+## Tech Stack
+
+| Package | Purpose |
+|---|---|
+| `http` | HTTP client for API calls |
+| `shared_preferences` | Persistent JWT and session storage |
+| `provider` | State management via `AuthController` (ChangeNotifier) |
+| `intl` | Date and currency formatting |
+
+---
+
+## State Management
+
+`AuthController` (`lib/features/auth/auth_controller.dart`) is the single source of truth:
+
+- Decodes JWT on login/register to extract `id`, `name`, and `role`
+- Exposes `balance`, `currency`, `recentActivity`, `transactions`
+- Methods: `login()`, `register()`, `logout()`, `fetchLogs()`, `fetchTransactionHistory()`, `transferFunds()`
+
+---
+
+## Shared Widgets
+
+| Widget | File | Description |
+|---|---|---|
+| `BalanceCard` | `shared/widgets/balance_card.dart` | Balance + name header card |
+| `ActivityTile` | `shared/widgets/activity_tile.dart` | Single audit log entry |
+| `TransactionTile` | `shared/widgets/transaction_tile.dart` | Single transaction with +/- styling |
+| `EmptyState` | `shared/widgets/empty_state.dart` | Pull-to-refresh compatible empty list |
+
+---
+
+## Base URL Configuration
+
+Set in `lib/core/config/`:
+
+| Environment | Default URL |
+|---|---|
+| Android emulator | `http://10.0.2.2:3002` |
+| Physical device / prod | Override via env or config file |
 
 ---
 

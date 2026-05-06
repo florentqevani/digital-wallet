@@ -1,40 +1,58 @@
-// src/handlers/history.js - Paginated transaction history for a client
+// src/handlers/history.js - Paginated transaction history
+// If client_id is omitted/empty, returns all transactions (admin use).
 
 const pool = require('../db');
 
 async function GetTransactionHistory(call, callback) {
     const { client_id, limit = 50, offset = 0 } = call.request;
 
-    if (!client_id) {
-        return callback(null, { success: false, transactions: [], total: 0, message: 'client_id is required' });
-    }
-
     const safeLimit  = Math.min(Math.max(1, limit),  200);
     const safeOffset = Math.max(0, offset);
 
+    const isAll = !client_id;
+
     try {
         const [countResult, rowsResult] = await Promise.all([
-            pool.query(
-                'SELECT COUNT(*) FROM transactions WHERE from_client_id = $1 OR to_client_id = $1',
-                [client_id]
-            ),
-            pool.query(
-                `SELECT
-                    id,
-                    COALESCE(from_client_id::text, '') AS from_client_id,
-                    to_client_id,
-                    amount,
-                    currency,
-                    type,
-                    status,
-                    COALESCE(note, '') AS note,
-                    EXTRACT(EPOCH FROM created_at)::bigint * 1000 AS created_at
-                 FROM transactions
-                 WHERE from_client_id = $1 OR to_client_id = $1
-                 ORDER BY created_at DESC
-                 LIMIT $2 OFFSET $3`,
-                [client_id, safeLimit, safeOffset]
-            ),
+            isAll
+                ? pool.query('SELECT COUNT(*) FROM transactions')
+                : pool.query(
+                    'SELECT COUNT(*) FROM transactions WHERE from_client_id = $1 OR to_client_id = $1',
+                    [client_id]
+                  ),
+            isAll
+                ? pool.query(
+                    `SELECT
+                        id,
+                        COALESCE(from_client_id::text, '') AS from_client_id,
+                        to_client_id,
+                        amount,
+                        currency,
+                        type,
+                        status,
+                        COALESCE(note, '') AS note,
+                        EXTRACT(EPOCH FROM created_at)::bigint * 1000 AS created_at
+                     FROM transactions
+                     ORDER BY created_at DESC
+                     LIMIT $1 OFFSET $2`,
+                    [safeLimit, safeOffset]
+                  )
+                : pool.query(
+                    `SELECT
+                        id,
+                        COALESCE(from_client_id::text, '') AS from_client_id,
+                        to_client_id,
+                        amount,
+                        currency,
+                        type,
+                        status,
+                        COALESCE(note, '') AS note,
+                        EXTRACT(EPOCH FROM created_at)::bigint * 1000 AS created_at
+                     FROM transactions
+                     WHERE from_client_id = $1 OR to_client_id = $1
+                     ORDER BY created_at DESC
+                     LIMIT $2 OFFSET $3`,
+                    [client_id, safeLimit, safeOffset]
+                  ),
         ]);
 
         const transactions = rowsResult.rows.map(row => ({

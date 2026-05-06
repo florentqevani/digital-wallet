@@ -94,8 +94,6 @@ services:
       NODE_ENV: production
       PORT: 3002
       API_GATEWAY_URL: http://api-gateway:8080
-      RAIACCEPT_WEBHOOK_URL: ${RAIACCEPT_WEBHOOK_URL}
-      RAIACCEPT_MOBILE_CALLBACK_BASE: ${RAIACCEPT_MOBILE_CALLBACK_BASE}
     depends_on:
       - api-gateway
     ports:

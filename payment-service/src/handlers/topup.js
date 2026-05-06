@@ -1,6 +1,7 @@
 // src/handlers/topup.js - Admin top-up: credits a client's balance
 
 const pool = require('../db');
+const { publishLog } = require('../rabbitmq/log-producer');
 
 async function AdminTopUp(call, callback) {
     const { admin_id, client_id, amount, currency = 'ALL', note = '' } = call.request;
@@ -45,6 +46,14 @@ async function AdminTopUp(call, callback) {
         const newBalance = parseFloat(updated.rows[0].balance);
         console.log(`✓ Admin top-up ${amount} ${currency} → client ${client_id} (balance: ${newBalance})`);
 
+        publishLog({
+            actor_id:   admin_id || 'system',
+            actor_type: 'admin',
+            action:     'TOPUP',
+            status:     'SUCCESS',
+            message:    `Top-up of ${amount.toFixed(2)} ${currency} applied to client ${client_id}. New balance: ${newBalance.toFixed(2)} ${currency}. Tx: ${txResult.rows[0].id}`,
+        });
+
         callback(null, {
             success: true,
             transaction_id: txResult.rows[0].id,
@@ -54,6 +63,13 @@ async function AdminTopUp(call, callback) {
     } catch (err) {
         await client.query('ROLLBACK');
         console.error('❌ AdminTopUp error:', err.message);
+        publishLog({
+            actor_id:   admin_id || 'system',
+            actor_type: 'admin',
+            action:     'TOPUP',
+            status:     'FAILURE',
+            message:    err.message,
+        });
         callback(null, { success: false, message: err.message });
     } finally {
         client.release();

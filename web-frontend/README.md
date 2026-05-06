@@ -2,7 +2,66 @@
 
 > Part of the [GRPC App](../README.md) platform.
 
-React back-office SPA (Vite + React Router). Provides the interface for back-office users and superadmins to manage users, clients, and audit logs.
+React back-office SPA (Vite + React Router). Provides the interface for back-office users and superadmins to manage users, clients, payments, and audit logs.
+
+---
+
+## Layout
+
+The app uses a persistent sidebar (`AppShell`) with a collapse/expand toggle button. All authenticated pages are nested inside this shell via React Router's layout route pattern.
+
+---
+
+## Pages
+
+| Path | Component | Access |
+|---|---|---|
+| `/` | Redirect to login | — |
+| `/login` | `LoginPage` | Public |
+| `/dashboard` | `AdminDashboardPage` | superadmin |
+| `/dashboard/users` | `UserManagementPage` | superadmin |
+| `/accounts` | `AccountsPage` | user / superadmin |
+| `/payments` | `PaymentsPage` | user / superadmin |
+| `/my-logs` | `MyLogsPage` | user / superadmin |
+| `*` | `NotFoundPage` | — |
+
+---
+
+## How It Connects
+
+All API calls go to the **Web BFF** (`http://localhost:3104` by default):
+
+```
+React SPA → Web BFF (HTTP :3104) → API Gateway (HTTP :8080) → gRPC services
+```
+
+The JWT is stored in `localStorage` after login and sent as a `Bearer` token on every subsequent request.
+
+---
+
+## Auth and Role-Based Routing
+
+- `ProtectedRoute` checks for a valid token in `localStorage`
+- Routes guarded by role: `superadmin`-only routes redirect `user` role to `/my-logs`
+- On token expiry or 401 response, the app clears session and redirects to `/login`
+
+---
+
+## Tech Stack
+
+| Library | Purpose |
+|---|---|
+| React 18 | UI framework |
+| React Router v6 | Client-side routing with layout routes |
+| Vite 5 | Dev server and build tool |
+
+---
+
+## Environment Variables
+
+| Variable | Description | Default |
+|---|---|---|
+| `VITE_WEB_BFF_URL` | Web BFF base URL | `http://localhost:3104` |
 
 ---
 

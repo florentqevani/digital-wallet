@@ -146,13 +146,16 @@ router.get('/balance', validateJWT(['client', 'superadmin', 'user']), async (req
 
 // ── GET /api/payments/history ─────────────────────────────────────────────────
 // Client sees their own transaction history (paginated).
-// Admin can query any client's history with ?client_id=<uuid>
+// Admin can query any client's history with ?client_id=<uuid>, or all transactions by omitting it.
 // Query params: limit (default 50, max 200), offset (default 0)
 router.get('/history', validateJWT(['client', 'superadmin', 'user']), async (req, res) => {
-    let client_id = req.user.user_id;
-
-    if (req.user.role !== 'client' && req.query.client_id) {
-        client_id = req.query.client_id;
+    // Clients always see only their own history
+    // Admins/users: pass explicit client_id to filter, or omit to get all transactions
+    let client_id;
+    if (req.user.role === 'client') {
+        client_id = req.user.user_id;
+    } else {
+        client_id = req.query.client_id || '';
     }
 
     const limit  = Math.min(Math.max(1, parseInt(req.query.limit  || '50',  10)), 200);

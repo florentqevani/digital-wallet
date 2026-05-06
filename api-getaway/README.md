@@ -46,8 +46,11 @@ The API Gateway is the single HTTP entry point for all BFFs (and direct API call
 | GET | `/api/logs` | `LogService.QueryLogs` | any authenticated |
 | GET | `/api/logs/dashboard` | `LogService.QueryLogs` (multiple) | superadmin |
 | GET | `/api/logs/all` | `LogService.QueryLogs` | superadmin |
-| POST | `/api/payments/initiate` | `PaymentService.InitiatePayment` | any authenticated |
-| POST | `/api/payments/confirm` | `PaymentService.ConfirmPayment` + `UserService.AddBalance` | any authenticated |
+| POST | `/api/payments/transfer` | `PaymentService.TransferFunds` (direct) | client |
+| POST | `/api/payments/transfer-by-email` | resolve email → `PaymentService.TransferFunds` | client |
+| POST | `/api/payments/topup` | `PaymentService.AdminTopUp` | user / superadmin |
+| GET | `/api/payments/balance` | `PaymentService.GetBalance` | any authenticated |
+| GET | `/api/payments/history` | `PaymentService.GetTransactionHistory` | any authenticated |
 | GET | `/health` | — | No |
 
 ---

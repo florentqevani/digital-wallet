@@ -1,6 +1,7 @@
 // src/handlers/transfer.js - Client-to-client fund transfer
 
 const pool = require('../db');
+const { publishLog } = require('../rabbitmq/log-producer');
 
 async function TransferFunds(call, callback) {
     const { from_client_id, to_client_id, amount, currency = 'ALL', note = '' } = call.request;
@@ -63,6 +64,15 @@ async function TransferFunds(call, callback) {
         await client.query('COMMIT');
 
         console.log(`✓ Transfer ${amount} ${currency}: ${from_client_id} → ${to_client_id}`);
+
+        publishLog({
+            actor_id:   from_client_id,
+            actor_type: 'client',
+            action:     'PAYMENT_COMPLETED',
+            status:     'SUCCESS',
+            message:    `Transfer of ${amount.toFixed(2)} ${currency} to client ${to_client_id}. Tx: ${txResult.rows[0].id}`,
+        });
+
         callback(null, {
             success: true,
             transaction_id: txResult.rows[0].id,
@@ -71,6 +81,13 @@ async function TransferFunds(call, callback) {
     } catch (err) {
         await client.query('ROLLBACK');
         console.error('❌ TransferFunds error:', err.message);
+        publishLog({
+            actor_id:   from_client_id,
+            actor_type: 'client',
+            action:     'PAYMENT_COMPLETED',
+            status:     'FAILURE',
+            message:    err.message,
+        });
         callback(null, { success: false, message: err.message });
     } finally {
         client.release();

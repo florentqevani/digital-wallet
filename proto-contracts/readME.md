@@ -52,8 +52,10 @@ proto-contracts/
 
 | RPC | Description |
 |---|---|
-| `InitiatePayment` | Create a RaiAccept order + checkout session |
-| `ConfirmPayment` | Check order status by `rai_order_id` |
+| `TransferFunds` | Atomic peer-to-peer transfer between two clients |
+| `AdminTopUp` | Credit a client's wallet (admin action) |
+| `GetBalance` | Return current wallet balance for a client |
+| `GetTransactionHistory` | Paginated ledger; omit `client_id` to return all transactions |
 
 ---
 

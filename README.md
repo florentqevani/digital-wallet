@@ -22,6 +22,344 @@ Frontend → BFF → API Gateway → gRPC microservice → PostgreSQL / RabbitMQ
 | [auth-service](auth_service/ReadME.md) | JWT auth — register, login, validate tokens |
 | [user-service](user-service/README.md) | Back-office user & client management |
 | [account-service](account-service/README.md) | Async account provisioning via RabbitMQ |
+| [payment-service](payment-service/readme.md) | Internal wallet — transfers, top-ups, balances |
+| [log-service](log-service/ReadME.md) | Centralised audit log — gRPC + RabbitMQ consumer |
+| [web-bff](web-bff/ReadME.md) | Backend-for-Frontend for the React web app |
+| [mobile-bff](mobile-bff/ReadME.md) | Backend-for-Frontend for the Flutter mobile app |
+| [web-frontend](web-frontend/README.md) | React back-office SPA |
+| [mobile-frontend](mobile_frontend/README.md) | Flutter mobile app |
+
+---
+
+## 1) High-Level Architecture
+
+```mermaid
+flowchart LR
+  subgraph Clients
+    WF[Web Frontend\nVite + React]
+    MF[Mobile Frontend\nFlutter]
+  end
+
+  subgraph BFF Layer
+    WB[Web BFF\nHTTP :3104]
+    MB[Mobile BFF\nHTTP :3002]
+  end
+
+  subgraph Edge Layer
+    AG[API Gateway\nHTTP :18080 / :8080 in-network]
+  end
+
+  subgraph gRPC Services
+    AS[Auth Service\ngRPC :50051]
+    LS[Log Service\ngRPC :50052]
+    US[User Service\ngRPC :50053]
+    ACS[Account Service\nno port - RMQ only]
+    PS[Payment Service\ngRPC :50055]
+  end
+
+  subgraph Messaging
+    RMQ[RabbitMQ\n:5672 / UI :15672]
+    SL[[service-logs queue]]
+    CR[[client-registered queue]]
+  end
+
+  subgraph Data
+    P[(PostgreSQL\n:5433 host / :5432 network)]
+    ADB[(auth_db)]
+    LDB[(log_db)]
+  end
+
+  WF -->|HTTP| WB
+  MF -->|HTTP| MB
+
+  WB -->|HTTP proxy| AG
+  MB -->|HTTP proxy| AG
+
+  AG -->|gRPC| AS
+  AG -->|gRPC| LS
+  AG -->|gRPC| US
+  AG -->|gRPC| PS
+
+  AS -->|publish| SL
+  AS -->|publish| CR
+  US -->|publish| SL
+  PS -->|publish| SL
+  SL --- RMQ
+  CR --- RMQ
+  RMQ -->|consume| LS
+  RMQ -->|consume| ACS
+
+  AS --> ADB
+  US --> ADB
+  PS --> ADB
+  ACS --> ADB
+  LS --> LDB
+
+  P --- ADB
+  P --- LDB
+```
+
+---
+
+## 2) Repository Structure
+
+```text
+GRPC_app/
+├── docker-compose.yml        ← Orchestrates all services
+├── Dockerfile.service        ← Single shared Dockerfile for Node services
+├── proto-contracts/          ← Shared .proto files + npm package
+├── api-getaway/              ← API Gateway (HTTP → gRPC)
+├── auth_service/             ← Auth gRPC service
+├── account-service/          ← Account provisioning (RabbitMQ consumer only)
+├── user-service/             ← User & client management gRPC service
+├── payment-service/          ← Internal wallet gRPC service
+├── log-service/              ← Audit log gRPC service + RMQ consumer
+├── web-bff/                  ← Web Backend-for-Frontend (HTTP)
+├── mobile-bff/               ← Mobile Backend-for-Frontend (HTTP)
+├── web-frontend/             ← React back-office (Vite)
+└── mobile_frontend/          ← Flutter mobile app
+```
+
+---
+
+## 3) Core Roles and Responsibilities
+
+### Web Frontend
+- Talks only to Web BFF
+- Sidebar navigation with collapsible menu (collapse/expand at will)
+- Main pages:
+  - **Dashboard** — log summary metrics and latest activity (superadmin)
+  - **Users** — back-office user CRUD (superadmin)
+  - **Accounts** — client listing and management (admin/superadmin)
+  - **Payments** — top-up wallets, balance lookup, full transaction ledger (admin/superadmin)
+  - **My Logs** — personal audit log with filters (all roles)
+
+### Web BFF
+- Talks to API Gateway over HTTP (not directly to gRPC services)
+- Exposes web-facing routes:
+  - `/api/auth/*`
+  - `/api/logs/*`
+  - `/api/users/*`
+  - `/api/payments/*`
+- Adds frontend-specific shaping and error handling
+
+### Mobile Frontend
+- Talks only to Mobile BFF
+- Main features:
+  - Register/login client (JWT stored in SharedPreferences)
+  - Balance card showing "Signed in as [name]" and current balance
+  - Activity tab (paginated audit log with infinite scroll)
+  - Transactions tab (transfer history with +/- colour coding)
+  - Send Money dialog (peer-to-peer transfer by email)
+
+### Mobile BFF
+- Talks to API Gateway over HTTP
+- Exposes mobile-facing routes:
+  - `/api/auth/*`
+  - `/api/payments/*` — transfer, balance, history
+- Aggregates login: authenticate + fetch recent activity in one response
+
+### API Gateway
+- Central HTTP entry for internal BFFs and external API tests
+- Applies middleware (request logging, rate limiting, JWT checks)
+- Forwards to gRPC services:
+  - AuthService, LogService, UserService, PaymentService
+- Supports both prefixed and non-prefixed route mounting:
+  - `/auth`, `/logs`, `/users`
+  - `/api/auth`, `/api/logs`, `/api/users`, `/api/payments`
+
+### Payment Service (gRPC)
+- Internal wallet system — no external payment gateway
+- Stores client balances and transactions in `auth_db`
+- `TransferFunds` — atomic peer-to-peer transfer between two clients
+- `AdminTopUp` — admin credits a client's wallet (creates money in the system)
+- `GetBalance` — returns current balance for a client
+- `GetTransactionHistory` — paginated ledger; omit `client_id` to get all transactions
+- Publishes `TOPUP` and `PAYMENT_COMPLETED` events to the `service-logs` RabbitMQ queue
+
+### Auth Service (gRPC)
+- Client registration and login (`RegisterClient`, `LoginClient`)
+- Backoffice user login (`LoginUser`)
+- JWT signing and token creation (`CreateToken`)
+- JWT validation (`ValidateToken`)
+- JWTs carry `{ id, name, role, permissions }` claims embedded at login time
+- Publishes audit log events to `service-logs` and `client-registered` RabbitMQ queues
+
+### Log Service (gRPC)
+- Write audit events (`WriteLog`)
+- Query audit events with filters + pagination (`QueryLogs`)
+- Persists to `log_db.logs`
+- Consumes the `service-logs` RabbitMQ queue (auto-reconnecting)
+
+### User Service (gRPC)
+- Role and user management (owns role field on all users)
+- Full user CRUD for superadmin: `RegisterUser`, `ListUsers`, `UpdateUser`, `DeleteUser`
+- Full client CRUD for admin: `ListClients`, `UpdateClient`, `DeleteClient`
+- Reads and writes `auth_db.users` and `auth_db.clients`
+- Publishes audit log events to the `service-logs` RabbitMQ queue
+
+### RabbitMQ
+- Message broker for decoupled audit log delivery and account provisioning
+- Queues:
+  - `service-logs` (durable) — Producers: Auth, User, Payment services → Consumer: Log Service
+  - `client-registered` (durable) — Producer: Auth Service → Consumer: Account Service
+- Management UI: `http://localhost:15672`
+
+### PostgreSQL
+- Single Postgres container, multiple databases:
+  - `auth_db` — clients, users, transactions, balances
+  - `log_db` — audit logs
+
+---
+
+## 4) Contracts (Proto Files)
+
+Shared contracts live in `proto-contracts/proto` and are consumed via local npm dependency `@myapp/proto-contracts`.
+
+- `auth.proto` — `RegisterClient`, `LoginClient`, `LoginUser`, `ValidateToken`, `CreateToken`
+- `log.proto` — `WriteLog`, `QueryLogs`
+- `user.proto` — `ListUsers`, `RegisterUser`, `UpdateUser`, `DeleteUser`, `ListClients`, `UpdateClient`, `DeleteClient`
+- `payment.proto` — `TransferFunds`, `AdminTopUp`, `GetBalance`, `GetTransactionHistory`
+
+---
+
+## 5) Request Flows (How It Works)
+
+### A) Web Backoffice Login
+1. Web UI → `POST /api/auth/login` on Web BFF
+2. Web BFF → Gateway `POST /api/auth/login`
+3. Gateway → gRPC `AuthService.LoginUser`
+4. Auth Service verifies `auth_db.users`, returns JWT with `{ id, name, role, permissions }`
+
+### B) Mobile Client Login
+1. Flutter → `POST /api/auth/login` on Mobile BFF
+2. Mobile BFF → Gateway `POST /api/auth/login-client`
+3. Gateway → gRPC `AuthService.LoginClient`
+4. Mobile BFF also fetches recent activity from Gateway `POST /api/logs/query`
+5. Returns merged `{ token, role, success, recentActivity }`
+
+### C) Mobile Send Money (Transfer)
+1. Flutter → `POST /api/payments/transfer` on Mobile BFF with `{ to_email, amount, note }`
+2. Mobile BFF → Gateway `POST /api/payments/transfer-by-email`
+3. Gateway resolves `to_email` → `client_id` via UserService, then calls `PaymentService.TransferFunds`
+4. Payment Service runs atomic debit/credit in `auth_db`, records transaction
+5. Payment Service publishes `PAYMENT_COMPLETED` log event to RabbitMQ
+
+### D) Admin Top-Up
+1. Web UI → `POST /api/payments/topup` via Web BFF
+2. Gateway → gRPC `PaymentService.AdminTopUp`
+3. Payment Service credits balance, records `TOPUP` transaction
+4. Publishes `TOPUP` log event to RabbitMQ → Log Service persists it
+
+### E) View All Transactions (Admin)
+1. Web UI → `GET /api/payments/history` (no `client_id` param) via Web BFF
+2. Gateway passes empty `client_id` to PaymentService
+3. `GetTransactionHistory` returns full ledger (no `WHERE` filter) with pagination
+
+### F) Web Dashboard
+1. Web UI → `/api/logs/dashboard` via Web BFF
+2. Gateway calls `LogService.QueryLogs` multiple times (per actor type)
+3. Returns summary counts + log slices to UI
+
+---
+
+## 6) Ports and Endpoints
+
+### Host-Mapped Ports
+- PostgreSQL: `5433`
+- RabbitMQ AMQP: `5672`
+- RabbitMQ Management UI: `15672`
+- API Gateway: `18080`
+- Web BFF: `3104`
+- Mobile BFF: `3002`
+- Auth health: `15051`
+- Log health: `15052`
+- User health: `15053`
+
+### Internal-Only Ports (Docker network)
+- Auth Service gRPC: `50051`
+- Log Service gRPC: `50052`
+- User Service gRPC: `50053`
+- Payment Service gRPC: `50055`
+
+### Typical HTTP Entry Points
+- Web BFF API: `http://localhost:3104`
+- Mobile BFF API: `http://localhost:3002`
+- Gateway API: `http://localhost:18080`
+
+---
+
+## 7) Data Model Overview
+
+### Databases
+- `auth_db`: `clients`, `users`, `transactions` (wallet ledger)
+- `log_db`: `logs` (actor / action / status / message / timestamp)
+
+### SQL Init
+- `log-service/db/init.sql` — creates `logs` table and indexes
+- `auth_service/db/init.sql` — creates `clients`, `users` tables
+- `payment-service` uses the same `auth_db` for `transactions` and balance columns on `clients`
+
+---
+
+## 8) Configuration and Environment
+
+### Docker Compose (Primary Runtime)
+All services communicate via Docker internal DNS:
+
+| Service | DNS name |
+|---|---|
+| API Gateway | `api-gateway:8080` |
+| Auth Service | `auth-service:50051` |
+| Log Service | `log-service:50052` |
+| User Service | `user-service:50053` |
+| Payment Service | `payment-service:50055` |
+| PostgreSQL | `postgres:5432` |
+| RabbitMQ | `rabbitmq:5672` |
+
+Key shared env vars:
+- `JWT_SECRET` — shared between Auth Service, API Gateway, and BFFs
+- `RABBITMQ_URL=amqp://app:secret@rabbitmq:5672` — Auth, User, Payment, and Log services
+- `AUTH_DB_URL` — Auth, User, Account, and Payment services
+
+---
+
+## 9) Running the Stack
+
+```bash
+# Start everything
+docker compose up -d
+
+# Rebuild a single service after code changes
+docker compose build --no-cache <service-name>
+docker compose up -d <service-name>
+
+# View logs
+docker compose logs -f <service-name>
+```
+
+A production-grade microservices platform with two client experiences:
+
+- **Web back-office** — React (Vite) + Web BFF
+- **Mobile app** — Flutter + Mobile BFF
+
+Every request follows a strict chain:
+
+```
+Frontend → BFF → API Gateway → gRPC microservice → PostgreSQL / RabbitMQ
+```
+
+---
+
+## Service READMEs
+
+| Service | Description |
+|---|---|
+| [proto-contracts](proto-contracts/readME.md) | Shared Protobuf definitions (npm package) |
+| [api-gateway](api-getaway/README.md) | HTTP edge — routes requests to gRPC services |
+| [auth-service](auth_service/ReadME.md) | JWT auth — register, login, validate tokens |
+| [user-service](user-service/README.md) | Back-office user & client management |
+| [account-service](account-service/README.md) | Async account provisioning via RabbitMQ |
 | [payment-service](payment-service/README.md) | Payment initiation & confirmation via RaiAccept |
 | [log-service](log-service/ReadME.md) | Centralised audit log — gRPC + RabbitMQ consumer |
 | [web-bff](web-bff/ReadME.md) | Backend-for-Frontend for the React web app |
