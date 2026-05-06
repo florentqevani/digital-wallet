@@ -1,5 +1,4 @@
 import { useEffect, useState } from 'react';
-import TopNav from '../components/top-nav';
 import LogsTable from '../components/logs-table';
 import { getMyLogs } from '../lib/api';
 import { useAuth } from '../hooks/use-auth';
@@ -45,8 +44,7 @@ export default function MyLogsPage() {
     const totalPages = Math.max(1, Math.ceil(data.total / 20));
 
     return (
-        <main className="page-shell">
-            <TopNav />
+        <>
             <section className="page-intro">
                 <h2>Activity Timeline</h2>
                 <p>Review your own login and operational events with pagination and status context.</p>
@@ -68,6 +66,6 @@ export default function MyLogsPage() {
                     </div>
                 </section>
             </section>
-        </main>
+        </>
     );
 }

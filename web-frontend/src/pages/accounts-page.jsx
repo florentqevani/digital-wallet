@@ -1,5 +1,4 @@
 import { useEffect, useMemo, useState } from 'react';
-import TopNav from '../components/top-nav';
 import { getAccounts, addCurrency, setBalance } from '../lib/api';
 import { useAuth } from '../hooks/use-auth';
 
@@ -94,9 +93,7 @@ export default function AccountsPage() {
 
 
     return (
-        <main className="page-shell">
-            <TopNav />
-
+        <>
             <section className="page-intro dashboard-intro">
                 <h2>Accounts</h2>
                 <p>Browse and search all registered client accounts.</p>
@@ -250,6 +247,6 @@ export default function AccountsPage() {
                     </p>
                 )}
             </section>
-        </main>
+        </>
     );
 }

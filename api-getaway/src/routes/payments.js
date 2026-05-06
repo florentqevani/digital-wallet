@@ -1,92 +1,174 @@
 'use strict';
 
 const express = require('express');
-const { randomUUID } = require('crypto');
 const { paymentClient, userClient } = require('../grpc-clients');
 const { validateJWT } = require('../middleware/jwt-validator');
 const { promisifyGRPC } = require('../utils/promise-wrapper');
 
 const router = express.Router();
 
-// ── POST /api/payments/initiate ───────────────────────────────────────────────
-// Delegates to payment-service via gRPC to authenticate with RaiAccept,
-// create the order + checkout session, and return the hosted payment URL.
-router.post('/initiate', validateJWT(['client', 'user', 'superadmin']), async (req, res) => {
+// ── POST /api/payments/transfer ───────────────────────────────────────────────
+// Authenticated client sends funds to another client.
+//   Body: { to_client_id, amount, note? }
+router.post('/transfer', validateJWT(['client']), async (req, res) => {
+    const { to_client_id, note } = req.body;
     const amount = parseFloat(req.body.amount);
+
+    if (!to_client_id) {
+        return res.status(400).json({ success: false, message: 'to_client_id is required' });
+    }
     if (isNaN(amount) || amount <= 0) {
         return res.status(400).json({ success: false, message: 'amount must be a positive number' });
     }
 
-    const {
-        success_url = '',
-        fail_url = '',
-        cancel_url = '',
-        notification_url = '',
-        currency = 'ALL',
-        description,
-    } = req.body;
-
     try {
         const response = await promisifyGRPC(
-            paymentClient.InitiatePayment.bind(paymentClient),
+            paymentClient.TransferFunds.bind(paymentClient),
             {
-                client_id: req.user.user_id,
+                from_client_id: req.user.user_id,
+                to_client_id,
                 amount,
-                merchant_order_reference: randomUUID(),
-                success_url,
-                fail_url,
-                cancel_url,
-                notification_url,
-                currency,
-                description: description || `Balance top-up: ${amount.toFixed(2)} ALL`,
+                currency: 'ALL',
+                note: note || '',
             }
         );
-
-        if (!response.success) {
-            return res.status(502).json({ success: false, message: response.message });
-        }
-
-        res.json({
-            paymentFormUrl: response.payment_form_url,
-            raiOrderId: response.rai_order_id,
-        });
+        res.status(response.success ? 200 : 400).json(response);
     } catch (err) {
-        console.error('❌ Payment initiate error:', err.message);
-        res.status(502).json({ success: false, message: 'Could not initiate payment' });
+        console.error('❌ Transfer error:', err.message);
+        res.status(502).json({ success: false, message: 'Transfer failed' });
     }
 });
 
-// ── POST /api/payments/confirm ────────────────────────────────────────────────
-// Verifies the RaiAccept payment status via payment-service, then credits
-// the authenticated client's balance.
-router.post('/confirm', validateJWT(['client', 'user', 'superadmin']), async (req, res) => {
-    const { raiOrderId, amount } = req.body;
-    if (!raiOrderId || !amount) {
-        return res.status(400).json({ success: false, message: 'raiOrderId and amount are required' });
+// ── POST /api/payments/transfer-by-email ─────────────────────────────────────
+// Client sends funds to another client identified by email address.
+//   Body: { to_email, amount, note? }
+router.post('/transfer-by-email', validateJWT(['client']), async (req, res) => {
+    const { to_email, note } = req.body;
+    const amount = parseFloat(req.body.amount);
+
+    if (!to_email || typeof to_email !== 'string' || !to_email.includes('@')) {
+        return res.status(400).json({ success: false, message: 'to_email must be a valid email address' });
+    }
+    if (isNaN(amount) || amount <= 0) {
+        return res.status(400).json({ success: false, message: 'amount must be a positive number' });
     }
 
     try {
-        // 1. Verify payment with payment-service
-        const paymentResponse = await promisifyGRPC(
-            paymentClient.ConfirmPayment.bind(paymentClient),
-            { rai_order_id: raiOrderId, client_id: req.user.user_id }
+        // Resolve email → client_id via the user service
+        const clientList = await promisifyGRPC(
+            userClient.ListClients.bind(userClient), {}
         );
-
-        if (!paymentResponse.success) {
-            return res.status(402).json({ success: false, message: paymentResponse.message });
+        const recipient = (clientList.clients || []).find(
+            (c) => c.email.toLowerCase() === to_email.trim().toLowerCase()
+        );
+        if (!recipient) {
+            return res.status(404).json({ success: false, message: `No client found with email: ${to_email}` });
+        }
+        if (recipient.id === req.user.user_id) {
+            return res.status(400).json({ success: false, message: 'Cannot transfer funds to yourself' });
         }
 
-        // 2. Credit the client's balance
-        const balanceResponse = await promisifyGRPC(
-            userClient.AddBalance.bind(userClient),
-            { client_id: req.user.user_id, amount: parseFloat(amount) }
+        const response = await promisifyGRPC(
+            paymentClient.TransferFunds.bind(paymentClient),
+            {
+                from_client_id: req.user.user_id,
+                to_client_id: recipient.id,
+                amount,
+                currency: 'ALL',
+                note: note || '',
+            }
         );
-
-        res.json(balanceResponse);
+        res.status(response.success ? 200 : 400).json({
+            ...response,
+            recipient_name: recipient.name,
+            recipient_email: recipient.email,
+        });
     } catch (err) {
-        console.error('❌ Payment confirm error:', err.message);
-        res.status(502).json({ success: false, message: err.message });
+        console.error('❌ Transfer-by-email error:', err.message);
+        res.status(502).json({ success: false, message: 'Transfer failed' });
+    }
+});
+
+// ── POST /api/payments/topup ──────────────────────────────────────────────────
+// Admin/superadmin credits a client's balance (creates money in the system).
+//   Body: { client_id, amount, note? }
+router.post('/topup', validateJWT(['superadmin', 'user']), async (req, res) => {
+    const { client_id, note } = req.body;
+    const amount = parseFloat(req.body.amount);
+
+    if (!client_id) {
+        return res.status(400).json({ success: false, message: 'client_id is required' });
+    }
+    if (isNaN(amount) || amount <= 0) {
+        return res.status(400).json({ success: false, message: 'amount must be a positive number' });
+    }
+
+    try {
+        const response = await promisifyGRPC(
+            paymentClient.AdminTopUp.bind(paymentClient),
+            {
+                admin_id: req.user.user_id,
+                client_id,
+                amount,
+                currency: 'ALL',
+                note: note || '',
+            }
+        );
+        res.status(response.success ? 200 : 400).json(response);
+    } catch (err) {
+        console.error('❌ TopUp error:', err.message);
+        res.status(502).json({ success: false, message: 'Top-up failed' });
+    }
+});
+
+// ── GET /api/payments/balance ─────────────────────────────────────────────────
+// Client checks their own balance.
+// Admin can check any client's balance with ?client_id=<uuid>
+router.get('/balance', validateJWT(['client', 'superadmin', 'user']), async (req, res) => {
+    let client_id = req.user.user_id;
+
+    // Admins may pass an explicit client_id query param
+    if (req.user.role !== 'client' && req.query.client_id) {
+        client_id = req.query.client_id;
+    }
+
+    try {
+        const response = await promisifyGRPC(
+            paymentClient.GetBalance.bind(paymentClient),
+            { client_id }
+        );
+        res.status(response.success ? 200 : 404).json(response);
+    } catch (err) {
+        console.error('❌ GetBalance error:', err.message);
+        res.status(502).json({ success: false, message: 'Could not retrieve balance' });
+    }
+});
+
+// ── GET /api/payments/history ─────────────────────────────────────────────────
+// Client sees their own transaction history (paginated).
+// Admin can query any client's history with ?client_id=<uuid>
+// Query params: limit (default 50, max 200), offset (default 0)
+router.get('/history', validateJWT(['client', 'superadmin', 'user']), async (req, res) => {
+    let client_id = req.user.user_id;
+
+    if (req.user.role !== 'client' && req.query.client_id) {
+        client_id = req.query.client_id;
+    }
+
+    const limit  = Math.min(Math.max(1, parseInt(req.query.limit  || '50',  10)), 200);
+    const offset = Math.max(0,              parseInt(req.query.offset || '0', 10));
+
+    try {
+        const response = await promisifyGRPC(
+            paymentClient.GetTransactionHistory.bind(paymentClient),
+            { client_id, limit, offset }
+        );
+        res.json(response);
+    } catch (err) {
+        console.error('❌ GetTransactionHistory error:', err.message);
+        res.status(502).json({ success: false, transactions: [], total: 0, message: 'Could not retrieve history' });
     }
 });
 
 module.exports = router;
+

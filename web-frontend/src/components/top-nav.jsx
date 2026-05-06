@@ -36,6 +36,11 @@ export default function TopNav() {
                         Accounts
                     </NavLink>
                 )}
+                {(role === 'user' || role === 'superadmin') && (
+                    <NavLink to="/payments" className={({ isActive }) => `nav-pill ${isActive ? 'nav-pill-active' : ''}`}>
+                        Payments
+                    </NavLink>
+                )}
             </nav>
             <div className="top-nav-actions">
                 <span className="role-chip">{role}</span>

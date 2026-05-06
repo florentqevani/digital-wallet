@@ -1,32 +1,34 @@
-'use strict';
+// src/server.js - Payment Service gRPC server
 
 const grpc = require('@grpc/grpc-js');
 const protoLoader = require('@grpc/proto-loader');
-const http = require('http');
-const path = require('path');
+const path = require('node:path');
+const http = require('node:http');
 const config = require('./config');
-const { initiatePayment, confirmPayment } = require('./handlers/payment');
 
-const protoPath = path.join(
-    __dirname,
-    '../node_modules/@myapp/proto-contracts/proto/payment.proto'
-);
+const { TransferFunds }         = require('./handlers/payment-process');
+const { AdminTopUp }            = require('./handlers/topup');
+const { GetBalance }            = require('./handlers/balance');
+const { GetTransactionHistory } = require('./handlers/history');
 
-const packageDef = protoLoader.loadSync(protoPath, {
+// Load proto
+const protoPath = path.join(__dirname, '../node_modules/@myapp/proto-contracts/proto/payment.proto');
+const packageDefinition = protoLoader.loadSync(protoPath, {
     keepCase: true,
-    longs: String,
-    enums: String,
+    longs:    String,
+    enums:    String,
     defaults: true,
-    oneofs: true,
+    oneofs:   true,
 });
+const paymentProto = grpc.loadPackageDefinition(packageDefinition).payment;
 
-const { payment } = grpc.loadPackageDefinition(packageDef);
-
+// Create gRPC server
 const server = new grpc.Server();
-
-server.addService(payment.PaymentService.service, {
-    InitiatePayment: initiatePayment,
-    ConfirmPayment: confirmPayment,
+server.addService(paymentProto.PaymentService.service, {
+    TransferFunds,
+    AdminTopUp,
+    GetBalance,
+    GetTransactionHistory,
 });
 
 server.bindAsync(
@@ -34,47 +36,31 @@ server.bindAsync(
     grpc.ServerCredentials.createInsecure(),
     (err, port) => {
         if (err) {
-            console.error('Failed to start Payment Service:', err.message);
+            console.error('Failed to start gRPC server:', err);
             process.exit(1);
         }
-        console.log(`\n Payment Service gRPC listening on port ${port}`);
+        console.log(`✓ Payment Service listening on port ${port}`);
     }
 );
 
-// HTTP health check endpoint
-const healthPort = Number(process.env.HEALTH_PORT || 15055);
+// Health endpoint
 const healthServer = http.createServer((req, res) => {
     if (req.url === '/health') {
         res.writeHead(200, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify({ status: 'ok', service: 'payment-service' }));
         return;
     }
-    res.writeHead(404, { 'Content-Type': 'application/json' });
-    res.end(JSON.stringify({ error: 'Not found' }));
+    res.writeHead(404);
+    res.end();
 });
 
-healthServer.listen(healthPort, () => {
-    console.log(`Payment Service health endpoint listening on port ${healthPort}`);
+healthServer.listen(config.healthPort, () => {
+    console.log(`✓ Payment health endpoint on port ${config.healthPort}`);
 });
 
 // Graceful shutdown
 process.on('SIGTERM', () => {
-    console.log('SIGTERM received, shutting down gracefully');
     healthServer.close(() => {
-        server.tryShutdown(() => {
-            console.log('Payment Service stopped.');
-            process.exit(0);
-        });
+        server.tryShutdown(() => process.exit(0));
     });
 });
-
-process.on('SIGINT', () => {
-    console.log('\nShutting down Payment Service...');
-    healthServer.close(() => {
-        server.tryShutdown(() => {
-            console.log('Payment Service stopped.');
-            process.exit(0);
-        });
-    });
-});
-

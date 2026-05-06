@@ -2,37 +2,81 @@ syntax = "proto3";
 package payment;
 
 service PaymentService {
-  rpc InitiatePayment (InitiatePaymentRequest) returns (InitiatePaymentResponse);
-  rpc ConfirmPayment  (ConfirmPaymentRequest)  returns (ConfirmPaymentResponse);
+  rpc TransferFunds         (TransferFundsRequest)         returns (TransferFundsResponse);
+  rpc AdminTopUp            (AdminTopUpRequest)            returns (AdminTopUpResponse);
+  rpc GetBalance            (GetBalanceRequest)            returns (GetBalanceResponse);
+  rpc GetTransactionHistory (GetTransactionHistoryRequest) returns (GetTransactionHistoryResponse);
 }
 
-message InitiatePaymentRequest {
-  string client_id                = 9;
-  double amount                   = 1;
-  string merchant_order_reference = 2;
-  string success_url              = 3;
-  string fail_url                 = 4;
-  string cancel_url               = 5;
-  string notification_url         = 6;
-  string currency                 = 7;
-  string description              = 8;
+// ── Transfer ─────────────────────────────────────────────────────────────────
+
+message TransferFundsRequest {
+  string from_client_id = 1;
+  string to_client_id   = 2;
+  double amount         = 3;
+  string currency       = 4;
+  string note           = 5;
 }
 
-message InitiatePaymentResponse {
-  bool   success          = 1;
-  string message          = 2;
-  string payment_form_url = 3;
-  string rai_order_id     = 4;
+message TransferFundsResponse {
+  bool   success        = 1;
+  string transaction_id = 2;
+  string message        = 3;
 }
 
-message ConfirmPaymentRequest {
-  string rai_order_id = 1;
-  string client_id    = 2;
+// ── Admin top-up ─────────────────────────────────────────────────────────────
+
+message AdminTopUpRequest {
+  string admin_id  = 1;
+  string client_id = 2;
+  double amount    = 3;
+  string currency  = 4;
+  string note      = 5;
 }
 
-message ConfirmPaymentResponse {
-  bool   success          = 1;
-  string message          = 2;
-  string rai_order_status = 3;
+message AdminTopUpResponse {
+  bool   success        = 1;
+  string transaction_id = 2;
+  double new_balance    = 3;
+  string message        = 4;
 }
 
+// ── Balance ──────────────────────────────────────────────────────────────────
+
+message GetBalanceRequest {
+  string client_id = 1;
+}
+
+message GetBalanceResponse {
+  bool   success  = 1;
+  double balance  = 2;
+  string currency = 3;
+  string message  = 4;
+}
+
+// ── Transaction history ───────────────────────────────────────────────────────
+
+message Transaction {
+  string id             = 1;
+  string from_client_id = 2;
+  string to_client_id   = 3;
+  double amount         = 4;
+  string currency       = 5;
+  string type           = 6;
+  string status         = 7;
+  string note           = 8;
+  int64  created_at     = 9;
+}
+
+message GetTransactionHistoryRequest {
+  string client_id = 1;
+  int32  limit     = 2;
+  int32  offset    = 3;
+}
+
+message GetTransactionHistoryResponse {
+  bool              success      = 1;
+  repeated Transaction transactions = 2;
+  int32             total        = 3;
+  string            message      = 4;
+}

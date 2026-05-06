@@ -1,5 +1,4 @@
 import { useEffect, useState } from 'react';
-import TopNav from '../components/top-nav';
 import LogsTable from '../components/logs-table';
 import StatCard from '../components/stat-card';
 import { getAllLogs, getDashboard } from '../lib/api';
@@ -177,8 +176,7 @@ export default function AdminDashboardPage() {
     }
 
     return (
-        <main className="page-shell">
-            <TopNav />
+        <>
             <section className="page-intro dashboard-intro">
                 <h2>{isSuperAdmin ? 'Executive Overview' : 'Activity Overview'}</h2>
                 <p>
@@ -254,6 +252,6 @@ export default function AdminDashboardPage() {
                     <LogsTable title={isSuperAdmin ? 'Filtered Results' : 'My Filtered Results'} logs={filteredLogs} className="compact-panel dashboard-query-results" />
                 )}
             </section>
-        </main>
+        </>
     );
 }

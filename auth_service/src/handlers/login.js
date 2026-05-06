@@ -30,7 +30,7 @@ async function LoginClient(call, callback) {
 
         const role = 'client';
         const token = jwt.sign(
-            { id: client.id, role, permissions: permissionsForRole(role) },
+            { id: client.id, name: client.name || '', role, permissions: permissionsForRole(role) },
             config.jwtSecret,
             { expiresIn: config.jwtExpiry }
         );

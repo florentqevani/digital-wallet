@@ -11,6 +11,7 @@ services:
       - postgres_data:/var/lib/postgresql/data
       - ./auth_service/db/init.sql:/docker-entrypoint-initdb.d/01-auth-schema.sql:ro
       - ./log-service/db/init.sql:/docker-entrypoint-initdb.d/02-log-schema.sql:ro
+      - ./payment-service/db/init.sql:/docker-entrypoint-initdb.d/03-payment-schema.sql:ro
     healthcheck:
       test: [ "CMD-SHELL", "pg_isready -U app" ]
       interval: 5s
@@ -192,12 +193,13 @@ services:
     environment:
       NODE_ENV: production
       PORT: 50055
-      RABBITMQ_URL: amqp://${RABBITMQ_USER}:${RABBITMQ_PASS}@rabbitmq:5672
-      RAIACCEPT_USERNAME: ${RAIACCEPT_USERNAME}
-      RAIACCEPT_PASSWORD: ${RAIACCEPT_PASSWORD}
+      HEALTH_PORT: 15055
+      AUTH_DB_URL: postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/auth_db
     depends_on:
-      rabbitmq:
+      postgres:
         condition: service_healthy
+    ports:
+      - "15055:15055"
 
 volumes:
   postgres_data:

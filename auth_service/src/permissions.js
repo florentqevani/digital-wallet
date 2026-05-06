@@ -3,6 +3,7 @@
 const PERMISSIONS = {
     client: [
         'logs:read:own',
+        'clients:balance-transfer',
     ],
     user: [
         'clients:read',
@@ -17,6 +18,7 @@ const PERMISSIONS = {
         'clients:write',
         'clients:delete',
         'logs:read:all',
+        'clients:topup'
     ],
 };
 

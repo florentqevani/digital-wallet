@@ -1,5 +1,4 @@
 import { useEffect, useState } from 'react';
-import TopNav from '../components/top-nav';
 import {
     deleteClientRequest,
     deleteUserRequest,
@@ -244,8 +243,7 @@ export default function UserManagementPage() {
     };
 
     return (
-        <main className="page-shell">
-            <TopNav />
+        <>
             <section className="page-intro dashboard-intro">
                 <h2>Identity Administration</h2>
                 <p>{isSuperAdmin ? 'Manage internal operators and customer accounts from a single control surface.' : 'Manage client accounts registered through the mobile app.'}</p>
@@ -503,6 +501,6 @@ export default function UserManagementPage() {
                     )}
                 </section>
             </section>
-        </main>
+        </>
     );
 }

@@ -1,7 +1,7 @@
 {
     "name": "payment-service",
     "version": "1.0.0",
-    "description": "Payment service - RaiAccept gRPC integration",
+    "description": "Local payment microservice – peer-to-peer transfers and admin top-ups",
     "main": "src/server.js",
     "scripts": {
         "start": "node src/server.js",
@@ -10,16 +10,16 @@
     "keywords": [
         "grpc",
         "payment",
-        "raiaccept"
+        "microservice"
     ],
     "author": "",
     "license": "MIT",
     "dependencies": {
-        "@grpc/grpc-js": "^1.14.3",
+        "@grpc/grpc-js": "^1.9.0",
         "@grpc/proto-loader": "^0.7.10",
         "@myapp/proto-contracts": "file:../proto-contracts",
-        "amqplib": "^0.10.4",
-        "dotenv": "^16.3.1"
+        "dotenv": "^16.3.1",
+        "pg": "^8.11.3"
     },
     "devDependencies": {
         "nodemon": "^3.0.2"

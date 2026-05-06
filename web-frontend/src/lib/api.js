@@ -125,3 +125,32 @@ export async function getAllLogs(token, filters = {}) {
     return apiRequest(`/api/logs/all?${search.toString()}`, { method: 'GET' }, token);
 }
 
+// ── Payment service ───────────────────────────────────────────────────────────
+
+export async function adminTopUp(token, payload) {
+    return apiRequest('/api/payments/topup', {
+        method: 'POST',
+        body: JSON.stringify(payload),
+    }, token);
+}
+
+export async function transferFunds(token, payload) {
+    return apiRequest('/api/payments/transfer', {
+        method: 'POST',
+        body: JSON.stringify(payload),
+    }, token);
+}
+
+export async function getPaymentBalance(token, clientId) {
+    const qs = clientId ? `?client_id=${encodeURIComponent(clientId)}` : '';
+    return apiRequest(`/api/payments/balance${qs}`, { method: 'GET' }, token);
+}
+
+export async function getTransactionHistory(token, clientId, limit = 50, offset = 0) {
+    const qs = new URLSearchParams();
+    if (clientId) qs.set('client_id', clientId);
+    qs.set('limit', String(limit));
+    qs.set('offset', String(offset));
+    return apiRequest(`/api/payments/history?${qs.toString()}`, { method: 'GET' }, token);
+}
+

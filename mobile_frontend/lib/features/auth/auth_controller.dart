@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 
 import 'package:flutter/foundation.dart';
 import 'package:mobile_frontend/core/network/api_client.dart';
@@ -38,34 +39,87 @@ class ActivityEntry {
   }
 }
 
+class TransactionEntry {
+  TransactionEntry({
+    required this.id,
+    required this.fromClientId,
+    required this.toClientId,
+    required this.amount,
+    required this.currency,
+    required this.type,
+    required this.status,
+    required this.note,
+    required this.createdAt,
+  });
+
+  final String id;
+  final String fromClientId;
+  final String toClientId;
+  final double amount;
+  final String currency;
+  final String type;
+  final String status;
+  final String note;
+  final DateTime createdAt;
+
+  bool get isCredit => fromClientId.isEmpty;
+
+  factory TransactionEntry.fromJson(Map<String, dynamic> json) {
+    final rawTimestamp = (json['created_at'] ?? 0).toString();
+    final millis = int.tryParse(rawTimestamp) ?? 0;
+    return TransactionEntry(
+      id: (json['id'] ?? '').toString(),
+      fromClientId: (json['from_client_id'] ?? '').toString(),
+      toClientId: (json['to_client_id'] ?? '').toString(),
+      amount: ((json['amount'] ?? 0) as num).toDouble(),
+      currency: (json['currency'] ?? 'ALL').toString(),
+      type: (json['type'] ?? '').toString(),
+      status: (json['status'] ?? '').toString(),
+      note: (json['note'] ?? '').toString(),
+      createdAt: DateTime.fromMillisecondsSinceEpoch(
+        millis,
+        isUtc: true,
+      ).toLocal(),
+    );
+  }
+}
+
 class AuthController extends ChangeNotifier {
   final ApiClient _apiClient = ApiClient();
   final SessionStore _sessionStore = SessionStore();
 
   bool _busy = false;
   bool _logsBusy = false;
+  bool _txBusy = false;
   String? _error;
   String _token = '';
+  String _clientId = '';
+  String _name = '';
   String _role = '';
   String _email = '';
   double _balance = 0.0;
   String _currency = 'ALL';
   List<String> _permissions = <String>[];
   List<ActivityEntry> _recentActivity = <ActivityEntry>[];
+  List<TransactionEntry> _transactions = <TransactionEntry>[];
   int _logsPage = 1;
   bool _hasMoreLogs = true;
 
   bool get isBusy => _busy;
   bool get isLogsBusy => _logsBusy;
+  bool get isTxBusy => _txBusy;
   bool get hasMoreLogs => _hasMoreLogs;
   bool get isAuthenticated => _token.isNotEmpty;
   String? get error => _error;
+  String get clientId => _clientId;
   String get role => _role;
+  String get name => _name.isNotEmpty ? _name : _email.split('@').first;
   String get email => _email;
   double get balance => _balance;
   String get currency => _currency;
   List<String> get permissions => List.unmodifiable(_permissions);
   List<ActivityEntry> get recentActivity => List.unmodifiable(_recentActivity);
+  List<TransactionEntry> get transactions => List.unmodifiable(_transactions);
 
   Future<void> loadSession() async {
     final saved = await _sessionStore.read();
@@ -74,12 +128,15 @@ class AuthController extends ChangeNotifier {
     }
 
     _token = saved.token;
+    _clientId = _extractClientId(saved.token);
+    _name = _extractName(saved.token);
     _role = saved.role;
     _email = saved.email;
     _permissions = List<String>.from(saved.permissions);
     notifyListeners();
     await fetchLogs(refresh: false);
     await fetchBalance();
+    unawaited(fetchTransactionHistory());
   }
 
   Future<bool> register({
@@ -100,6 +157,8 @@ class AuthController extends ChangeNotifier {
         final token = (response['token'] ?? '').toString();
         if (token.isNotEmpty) {
           _token = token;
+          _clientId = _extractClientId(token);
+          _name = _extractName(token);
           _role = (response['role'] ?? 'client').toString();
           _email = email;
           _permissions =
@@ -156,6 +215,8 @@ class AuthController extends ChangeNotifier {
       }
 
       _token = token;
+      _clientId = _extractClientId(token);
+      _name = _extractName(token);
       _role = (response['role'] ?? '').toString();
       _email = email;
       _permissions = ((response['permissions'] ?? <dynamic>[]) as List<dynamic>)
@@ -180,6 +241,7 @@ class AuthController extends ChangeNotifier {
 
       notifyListeners();
       unawaited(fetchBalance());
+      unawaited(fetchTransactionHistory());
       return true;
     } catch (e) {
       _setError(_messageFromError(e));
@@ -197,6 +259,7 @@ class AuthController extends ChangeNotifier {
     _currency = 'ALL';
     _permissions = <String>[];
     _recentActivity = <ActivityEntry>[];
+    _transactions = <TransactionEntry>[];
     _logsPage = 1;
     _hasMoreLogs = true;
     _setError(null);
@@ -220,85 +283,68 @@ class AuthController extends ChangeNotifier {
     }
   }
 
-  /// Deposits [amount] into the client's own balance.
+  /// Transfers [amount] to the client identified by [recipientEmail].
   /// Returns null on success (balance updated), or an error message string.
-  Future<String?> addMoney(double amount) async {
+  Future<String?> transferFunds({
+    required String recipientEmail,
+    required double amount,
+    String note = '',
+  }) async {
     if (_token.isEmpty) return 'Not authenticated';
+    _setBusy(true);
+    _setError(null);
     try {
       final response = await _apiClient.post(
-        '/api/balance/add',
-        body: {'amount': amount},
+        '/api/payments/transfer',
+        body: {
+          'to_email': recipientEmail.trim(),
+          'amount': amount,
+          'note': note,
+        },
         token: _token,
       );
       if (response['success'] == true) {
-        _balance = ((response['balance'] ?? _balance) as num).toDouble();
-        notifyListeners();
+        // Refresh balance after successful transfer
+        await fetchBalance();
+        unawaited(fetchTransactionHistory(refresh: true));
         return null;
       }
-      return (response['message'] ?? 'Failed to add money').toString();
+      return (response['message'] ?? 'Transfer failed').toString();
     } catch (e) {
       if (e is ApiException && e.statusCode == 401) {
         await logout();
         return 'Session expired. Please log in again.';
       }
       return _messageFromError(e);
-    }
-  }
-
-  /// Initiates a RaiAccept payment to top up balance by [amount] ALL.
-  /// Returns a map with `paymentFormUrl` and `raiOrderId` on success, or null on error.
-  Future<Map<String, String>?> initiatePayment(double amount) async {
-    if (_token.isEmpty) return null;
-    _setBusy(true);
-    _setError(null);
-    try {
-      final response = await _apiClient.post(
-        '/api/payments/initiate',
-        body: {'amount': amount},
-        token: _token,
-      );
-      final url = (response['paymentFormUrl'] ?? '').toString();
-      final orderId = (response['raiOrderId'] ?? '').toString();
-      if (url.isEmpty || orderId.isEmpty) {
-        _setError('Invalid payment response from server.');
-        return null;
-      }
-      return {'paymentFormUrl': url, 'raiOrderId': orderId};
-    } catch (e) {
-      if (e is ApiException && e.statusCode == 401) {
-        await logout();
-        _setError('Session expired. Please log in again.');
-      } else {
-        _setError(_messageFromError(e));
-      }
-      return null;
     } finally {
       _setBusy(false);
     }
   }
 
-  /// Confirms a completed RaiAccept payment and credits balance.
-  /// Returns null on success (balance updated in state), or an error message.
-  Future<String?> confirmPayment(String raiOrderId, double amount) async {
-    if (_token.isEmpty) return 'Not authenticated';
+  /// Fetches the client's own transaction history from the payments service.
+  /// [refresh] = true replaces the list; [refresh] = false appends (not used yet).
+  Future<void> fetchTransactionHistory({bool refresh = true}) async {
+    if (_token.isEmpty) return;
+    if (_txBusy) return;
+    _txBusy = true;
+    notifyListeners();
     try {
-      final response = await _apiClient.post(
-        '/api/payments/confirm',
-        body: {'raiOrderId': raiOrderId, 'amount': amount},
+      final response = await _apiClient.get(
+        '/api/payments/history',
         token: _token,
+        query: {'limit': '20', 'offset': '0'},
       );
-      if (response['success'] == true) {
-        _balance = ((response['balance'] ?? _balance) as num).toDouble();
-        notifyListeners();
-        return null;
-      }
-      return (response['message'] ?? 'Payment confirmation failed').toString();
-    } catch (e) {
-      if (e is ApiException && e.statusCode == 401) {
-        await logout();
-        return 'Session expired. Please log in again.';
-      }
-      return _messageFromError(e);
+      final fetched =
+          ((response['transactions'] ?? <dynamic>[]) as List<dynamic>)
+              .whereType<Map<String, dynamic>>()
+              .map(TransactionEntry.fromJson)
+              .toList();
+      _transactions = fetched;
+    } catch (_) {
+      // Silently fail
+    } finally {
+      _txBusy = false;
+      notifyListeners();
     }
   }
 
@@ -342,6 +388,31 @@ class AuthController extends ChangeNotifier {
       _logsBusy = false;
       notifyListeners();
     }
+  }
+
+  /// Decodes the JWT payload into a map (returns empty map on failure).
+  Map<String, dynamic> _decodeJwt(String token) {
+    try {
+      final parts = token.split('.');
+      if (parts.length != 3) return {};
+      final normalized = base64Url.normalize(parts[1]);
+      final decoded = utf8.decode(base64Url.decode(normalized));
+      return jsonDecode(decoded) as Map<String, dynamic>;
+    } catch (_) {
+      return {};
+    }
+  }
+
+  /// Extracts the client UUID from the JWT payload.
+  String _extractClientId(String token) {
+    final payload = _decodeJwt(token);
+    return (payload['id'] ?? '').toString();
+  }
+
+  /// Extracts the client name from the JWT payload.
+  String _extractName(String token) {
+    final payload = _decodeJwt(token);
+    return (payload['name'] ?? '').toString();
   }
 
   void clearError() {

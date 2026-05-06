@@ -1,13 +1,8 @@
-
 require('dotenv').config();
 
 module.exports = {
-    port: process.env.PORT || 50055,
-    nodeEnv: process.env.NODE_ENV || 'development',
-    raiaccept: {
-        username: process.env.RAIACCEPT_USERNAME,
-        password: process.env.RAIACCEPT_PASSWORD,
-        mobileCallbackBase: process.env.RAIACCEPT_MOBILE_CALLBACK_BASE || 'http://mobile.callback',
-        webhookUrl: process.env.RAIACCEPT_WEBHOOK_URL || 'http://localhost:3002',
-    },
+    port:       Number(process.env.PORT)        || 50055,
+    healthPort: Number(process.env.HEALTH_PORT) || 15055,
+    nodeEnv:    process.env.NODE_ENV            || 'development',
+    authDbUrl:  process.env.AUTH_DB_URL         || 'postgres://app:secret@localhost:5432/auth_db',
 };
