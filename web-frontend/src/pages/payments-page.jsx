@@ -384,7 +384,9 @@ export default function PaymentsPage() {
     const handleTopUpSuccess = () => setRefreshSignal((s) => s + 1);
 
     return (
-        <>
+        <main className="page-shell">
+            <TopNav />
+
             <section className="page-intro dashboard-intro">
                 <h2>Payments</h2>
                 <p>Manage client wallets — top-up balances, inspect balances, and review the full transaction ledger.</p>
@@ -416,6 +418,6 @@ export default function PaymentsPage() {
                     <HistoryPanel token={token} clients={clients} refreshSignal={refreshSignal} />
                 )}
             </div>
-        </>
+        </main>
     );
 }

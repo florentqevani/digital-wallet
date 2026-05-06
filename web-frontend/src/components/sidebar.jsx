@@ -9,7 +9,7 @@ const NAV_ITEMS = [
     { to: '/my-logs',         label: 'My Logs',   icon: '📋',            roles: ['user', 'superadmin'] },
 ];
 
-export default function Sidebar() {
+export default function Sidebar({ collapsed, onToggle }) {
     const navigate = useNavigate();
     const { role, logout } = useAuth();
 
@@ -21,10 +21,23 @@ export default function Sidebar() {
     const visible = NAV_ITEMS.filter((item) => item.roles.includes(role));
 
     return (
-        <aside className="sidebar">
+        <aside className={`sidebar${collapsed ? ' sidebar--collapsed' : ''}`}>
             <div className="sidebar-brand">
-                <span className="sidebar-eyebrow">Backoffice Suite</span>
-                <h1 className="sidebar-title">Operations</h1>
+                {!collapsed && (
+                    <div className="sidebar-brand-text">
+                        <span className="sidebar-eyebrow">Backoffice Suite</span>
+                        <h1 className="sidebar-title">Operations</h1>
+                    </div>
+                )}
+                <button
+                    type="button"
+                    className="sidebar-toggle"
+                    onClick={onToggle}
+                    aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+                    title={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+                >
+                    {collapsed ? '☰' : '☰'}
+                </button>
             </div>
 
             <nav className="sidebar-nav" aria-label="Main navigation">
@@ -33,24 +46,26 @@ export default function Sidebar() {
                         key={to}
                         to={to}
                         end={end}
+                        title={collapsed ? label : undefined}
                         className={({ isActive }) =>
                             `sidebar-link${isActive ? ' sidebar-link-active' : ''}`
                         }
                     >
                         <span className="sidebar-icon" aria-hidden="true">{icon}</span>
-                        {label}
+                        {!collapsed && label}
                     </NavLink>
                 ))}
             </nav>
 
             <div className="sidebar-footer">
-                <span className="role-chip">{role}</span>
+                {!collapsed && <span className="role-chip">{role}</span>}
                 <button
                     type="button"
                     className="button-muted sidebar-signout"
                     onClick={handleLogout}
+                    title="Sign out"
                 >
-                    Sign out
+                    {collapsed ? '↩' : 'Sign out'}
                 </button>
             </div>
         </aside>
