@@ -68,7 +68,7 @@ async function LoginUser(call, callback) {
 
         // Role comes from the database; auth-service signs the token
         const token = jwt.sign(
-            { id: user.id, role: user.role, permissions: permissionsForRole(user.role) },
+            { id: user.id, name: user.name || '', role: user.role, permissions: permissionsForRole(user.role) },
             config.jwtSecret,
             { expiresIn: config.jwtExpiry }
         );

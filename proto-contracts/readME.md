@@ -108,7 +108,6 @@ After updating, reinstall the package in every affected service:
 ```bash
 npm install file:../proto-contracts
 ```
-- Changing message structure (carefully!)
 
 ## Backward Compatibility Rules
 

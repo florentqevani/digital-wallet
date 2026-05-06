@@ -93,32 +93,6 @@ GET http://localhost:3002/health
 
 Returns `{ "status": "ok" }`.
 
----
-
-## Port
-
-| Context | Port |
-|---|---|
-| Host (docker-compose) | `3002` |
-| Internal Docker network | `3002` |
-
----
-
-## Routes
-
-| Method | Path | Description |
-|---|---|---|
-| POST | `/api/auth/register` | Register a new client → JWT |
-| POST | `/api/auth/login` | Login client + fetch recent activity → merged response |
-| GET | `/api/logs` | Query audit logs for the authenticated client |
-| GET | `/api/balance` | Get client account balance |
-| POST | `/api/payments/initiate` | Build callback URLs then call `API Gateway /api/payments/initiate` |
-| POST | `/api/payments/confirm` | Forward to `API Gateway /api/payments/confirm` |
-| POST | `/api/payments/webhook` | Receive RaiAccept server-to-server payment notifications |
-| GET | `/health` | Health check |
-
----
-
 ## Aggregated Login
 
 On `POST /api/auth/login` the BFF:

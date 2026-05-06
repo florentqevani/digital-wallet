@@ -112,19 +112,3 @@ GET http://localhost:15053/health
 ```
 
 Returns `{ "status": "ok", "service": "user-service" }`.
-
-| Variable | Description | Default |
-|---|---|---|
-| `PORT` | gRPC listen port | `50053` |
-| `HEALTH_PORT` | HTTP health endpoint port | `15053` |
-| `AUTH_DB_URL` | PostgreSQL connection string | required |
-| `LOG_SERVICE_URL` | Log service gRPC address | `localhost:50052` |
-| `RABBITMQ_URL` | RabbitMQ connection URL | `amqp://app:secret@rabbitmq:5672` |
-
-## Dependencies
-
-- `@grpc/grpc-js` — gRPC server
-- `bcrypt` — password hashing
-- `amqplib` — RabbitMQ publisher (audit log events)
-- `pg` — PostgreSQL driver
-- `dotenv` — environment variable management

@@ -1,12 +1,12 @@
 import { useState } from 'react';
-import { useLocation, useNavigate } from 'react-router-dom';
+import { Navigate, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/use-auth';
 import { loginRequest } from '../lib/api';
 
 export default function LoginPage() {
     const navigate = useNavigate();
     const location = useLocation();
-    const { login } = useAuth();
+    const { login, isAuthenticated } = useAuth();
 
     const [form, setForm] = useState({
         email: '',
@@ -14,6 +14,10 @@ export default function LoginPage() {
     });
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
+
+    if (isAuthenticated) {
+        return <Navigate to="/" replace />;
+    }
 
     const onChange = (event) => {
         const { name, value } = event.target;
@@ -38,10 +42,8 @@ export default function LoginPage() {
 
             if (redirectTo) {
                 navigate(redirectTo, { replace: true });
-            } else if (response.role === 'superadmin') {
-                navigate('/dashboard', { replace: true });
             } else {
-                navigate('/my-logs', { replace: true });
+                navigate('/dashboard', { replace: true });
             }
         } catch (requestError) {
             setError(requestError.message);
