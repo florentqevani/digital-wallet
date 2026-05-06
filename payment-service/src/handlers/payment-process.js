@@ -1,4 +1,4 @@
-// src/handlers/transfer.js - Client-to-client fund transfer
+
 
 const pool = require('../db');
 const { publishLog } = require('../rabbitmq/log-producer');

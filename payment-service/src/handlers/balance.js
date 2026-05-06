@@ -1,4 +1,4 @@
-// src/handlers/balance.js - Get a client's current wallet balance
+
 
 const pool = require('../db');
 

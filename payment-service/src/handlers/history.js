@@ -1,5 +1,4 @@
-// src/handlers/history.js - Paginated transaction history
-// If client_id is omitted/empty, returns all transactions (admin use).
+
 
 const pool = require('../db');
 

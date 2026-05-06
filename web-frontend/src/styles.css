@@ -224,6 +224,28 @@ a {
     padding   : 0.5rem;
 }
 
+/* ── Sidebar groups ───────────────────────────────────── */
+
+.sidebar-group {
+    margin-bottom: 0.2rem;
+}
+
+.sidebar-group-label {
+    display       : block;
+    padding       : 0.65rem 0.78rem 0.2rem;
+    font-size     : 0.6rem;
+    font-weight   : 800;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color         : var(--ink-soft);
+    opacity       : 0.6;
+    user-select   : none;
+}
+
+.sidebar--collapsed .sidebar-group-label {
+    display: none;
+}
+
 /* ── Role chip (used in sidebar footer) ───────────────── */
 
 .role-chip {
