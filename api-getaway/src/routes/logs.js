@@ -90,18 +90,24 @@ router.get('/my-logs', validateJWT(['user', 'superadmin']), async (req, res) => 
 // GET /logs/dashboard
 router.get('/dashboard', validateJWT(['user', 'superadmin']), async (req, res) => {
     try {
+        // Fetch last 14 days so the chart has enough data to bucket per day
+        const from14d = Date.now() - 14 * 24 * 60 * 60 * 1000;
+        const CHART_LIMIT = 500;
+
         if (req.user.role === 'user') {
             const [ownLogsResponse, clientLogsResponse] = await Promise.all([
                 promisifyGRPC(logClient.QueryLogs.bind(logClient), {
                     actor_type: 'user',
                     actor_id: req.user.user_id,
+                    from: from14d,
                     page: 1,
-                    limit: 10,
+                    limit: CHART_LIMIT,
                 }),
                 promisifyGRPC(logClient.QueryLogs.bind(logClient), {
                     actor_type: 'client',
+                    from: from14d,
                     page: 1,
-                    limit: 10,
+                    limit: CHART_LIMIT,
                 }),
             ]);
 
@@ -126,18 +132,21 @@ router.get('/dashboard', validateJWT(['user', 'superadmin']), async (req, res) =
         const [clientLogsResponse, userLogsResponse, superadminLogsResponse] = await Promise.all([
             promisifyGRPC(logClient.QueryLogs.bind(logClient), {
                 actor_type: 'client',
+                from: from14d,
                 page: 1,
-                limit: 10,
+                limit: CHART_LIMIT,
             }),
             promisifyGRPC(logClient.QueryLogs.bind(logClient), {
                 actor_type: 'user',
+                from: from14d,
                 page: 1,
-                limit: 10,
+                limit: CHART_LIMIT,
             }),
             promisifyGRPC(logClient.QueryLogs.bind(logClient), {
                 actor_type: 'superadmin',
+                from: from14d,
                 page: 1,
-                limit: 10,
+                limit: CHART_LIMIT,
             }),
         ]);
 
@@ -145,15 +154,9 @@ router.get('/dashboard', validateJWT(['user', 'superadmin']), async (req, res) =
         const combinedUserLogs = [
             ...(userLogsResponse.logs || []),
             ...(superadminLogsResponse.logs || []),
-        ]
-            .sort((a, b) => Number(b.timestamp || 0) - Number(a.timestamp || 0))
-            .slice(0, 10);
+        ].sort((a, b) => Number(b.timestamp || 0) - Number(a.timestamp || 0));
 
-        const allLogs = [
-            ...clientLogs,
-            ...(userLogsResponse.logs || []),
-            ...(superadminLogsResponse.logs || []),
-        ];
+        const allLogs = [...clientLogs, ...(userLogsResponse.logs || []), ...(superadminLogsResponse.logs || [])];
         const errorCount = allLogs.filter((log) => log.status === 'ERROR').length;
         const successCount = allLogs.filter((log) => log.status === 'SUCCESS').length;
 

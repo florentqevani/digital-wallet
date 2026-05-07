@@ -4,7 +4,7 @@ const pool = require('../db');
 const { publishLog } = require('../rabbitmq/log-producer');
 
 async function AdminTopUp(call, callback) {
-    const { admin_id, client_id, amount, currency = 'ALL', note = '' } = call.request;
+    const { admin_id, actor_type = 'user', client_id, amount, currency = 'ALL', note = '' } = call.request;
 
     if (!client_id) {
         return callback(null, { success: false, message: 'client_id is required' });
@@ -48,7 +48,7 @@ async function AdminTopUp(call, callback) {
 
         publishLog({
             actor_id:   admin_id || 'system',
-            actor_type: 'admin',
+            actor_type: actor_type,
             action:     'TOPUP',
             status:     'SUCCESS',
             message:    `Top-up of ${amount.toFixed(2)} ${currency} applied to client ${client_id}. New balance: ${newBalance.toFixed(2)} ${currency}. Tx: ${txResult.rows[0].id}`,
@@ -65,7 +65,7 @@ async function AdminTopUp(call, callback) {
         console.error('❌ AdminTopUp error:', err.message);
         publishLog({
             actor_id:   admin_id || 'system',
-            actor_type: 'admin',
+            actor_type: actor_type,
             action:     'TOPUP',
             status:     'FAILURE',
             message:    err.message,

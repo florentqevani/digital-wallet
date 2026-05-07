@@ -107,7 +107,8 @@ router.post('/topup', validateJWT(['superadmin', 'user']), async (req, res) => {
         const response = await promisifyGRPC(
             paymentClient.AdminTopUp.bind(paymentClient),
             {
-                admin_id: req.user.user_id,
+                admin_id:   req.user.user_id,
+                actor_type: req.user.role,
                 client_id,
                 amount,
                 currency: 'ALL',

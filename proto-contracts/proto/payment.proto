@@ -27,11 +27,12 @@ message TransferFundsResponse {
 // ── Admin top-up ─────────────────────────────────────────────────────────────
 
 message AdminTopUpRequest {
-  string admin_id  = 1;
-  string client_id = 2;
-  double amount    = 3;
-  string currency  = 4;
-  string note      = 5;
+  string admin_id   = 1;
+  string client_id  = 2;
+  double amount     = 3;
+  string currency   = 4;
+  string note       = 5;
+  string actor_type = 6;
 }
 
 message AdminTopUpResponse {

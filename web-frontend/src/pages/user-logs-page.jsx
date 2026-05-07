@@ -17,7 +17,7 @@ export default function UserLogsPage() {
     const [logs, setLogs] = useState([]);
     const [total, setTotal] = useState(0);
     const [page, setPage] = useState(1);
-    const [actorType, setActorType] = useState('user');
+    const [actorType, setActorType] = useState('');
     const [actorId, setActorId] = useState('');
     const [range, setRange] = useState('24h');
     const [customFrom, setCustomFrom] = useState(() => toDateTimeLocal(new Date().setHours(0, 0, 0, 0)));
@@ -75,9 +75,9 @@ export default function UserLogsPage() {
                             <label>
                                 <span>Actor Type</span>
                                 <select value={actorType} onChange={(e) => setActorType(e.target.value)}>
+                                    <option value="">All</option>
                                     <option value="user">User</option>
                                     <option value="superadmin">Super Admin</option>
-                                    <option value="">All</option>
                                 </select>
                             </label>
                             <label>
