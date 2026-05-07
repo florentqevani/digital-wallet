@@ -1,11 +1,23 @@
 import { useEffect, useState } from 'react';
-import { getClients, updateClientRequest, deleteClientRequest } from '../lib/api';
+import { getAccounts, updateClientRequest, deleteClientRequest } from '../lib/api';
 import { useAuth } from '../hooks/use-auth';
 
 function formatDate(timestamp) {
     if (!timestamp) return '-';
     const date = new Date(Number(timestamp));
     return Number.isNaN(date.getTime()) ? '-' : date.toLocaleString();
+}
+
+function MonoCell({ value, title }) {
+    if (!value) return <span style={{ color: 'var(--ink-soft)' }}>—</span>;
+    return (
+        <span
+            style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: '0.72rem' }}
+            title={title || value}
+        >
+            {value}
+        </span>
+    );
 }
 
 export default function ClientAccountsPage() {
@@ -22,7 +34,7 @@ export default function ClientAccountsPage() {
         setLoading(true);
         setError('');
         try {
-            const res = await getClients(token);
+            const res = await getAccounts(token);
             setClients(res.clients || []);
         } catch (err) {
             setError(err.message);
@@ -92,6 +104,15 @@ export default function ClientAccountsPage() {
                         </div>
                         <div className="section-meta-pills">
                             <span className="status-pill">{clients.length} total</span>
+                            <button
+                                type="button"
+                                className="button-muted"
+                                onClick={load}
+                                disabled={loading}
+                                style={{ padding: '0.34rem 0.6rem', fontSize: '0.8rem' }}
+                            >
+                                {loading ? 'Loading…' : '↻ Refresh'}
+                            </button>
                         </div>
                     </div>
                     <p>Review customer accounts created through the client registration flow.</p>
@@ -104,23 +125,41 @@ export default function ClientAccountsPage() {
                                     <tr>
                                         <th>Name</th>
                                         <th>Email</th>
+                                        <th>Account ID</th>
+                                        <th>Balance (ALL)</th>
+                                        <th>Currency</th>
                                         <th>Created At</th>
                                         <th>Actions</th>
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    {clients.length === 0 && <tr><td colSpan={4}>No clients found.</td></tr>}
+                                    {clients.length === 0 && (
+                                        <tr><td colSpan={7} style={{ textAlign: 'center', color: 'var(--ink-soft)', padding: '2rem' }}>No clients found.</td></tr>
+                                    )}
                                     {clients.map((client) => (
                                         <tr key={client.id}>
                                             <td data-label="Name">
                                                 {editingClientId === client.id
                                                     ? <input value={clientEditForm.name} onChange={(e) => setClientEditForm((c) => ({ ...c, name: e.target.value }))} placeholder="Name" />
-                                                    : (client.name || '-')}
+                                                    : (client.name || <span style={{ color: 'var(--ink-soft)' }}>—</span>)}
                                             </td>
                                             <td data-label="Email">
                                                 {editingClientId === client.id
                                                     ? <input type="email" value={clientEditForm.email} onChange={(e) => setClientEditForm((c) => ({ ...c, email: e.target.value }))} placeholder="Email" />
                                                     : client.email}
+                                            </td>
+                                            <td data-label="Account ID">
+                                                <MonoCell value={client.account_id} />
+                                            </td>
+                                            <td data-label="Balance (ALL)">
+                                                <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: '0.82rem', fontWeight: 600 }}>
+                                                    {client.balance != null ? client.balance : '—'}
+                                                </span>
+                                            </td>
+                                            <td data-label="Currency">
+                                                {client.currency
+                                                    ? <span className="status-pill">{client.currency}</span>
+                                                    : <span style={{ color: 'var(--ink-soft)' }}>—</span>}
                                             </td>
                                             <td data-label="Created At">{formatDate(client.created_at)}</td>
                                             <td data-label="Actions">

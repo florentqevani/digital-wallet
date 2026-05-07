@@ -66,6 +66,8 @@ message Transaction {
   string status         = 7;
   string note           = 8;
   int64  created_at     = 9;
+  string from_email     = 10;
+  string to_email       = 11;
 }
 
 message GetTransactionHistoryRequest {

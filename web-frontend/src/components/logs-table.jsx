@@ -12,9 +12,9 @@ function formatTimestamp(value) {
     return date.toLocaleString();
 }
 
-export default function LogsTable({ logs, title, className = '' }) {
-    return (
-        <section className={`panel ${className}`.trim()}>
+export default function LogsTable({ logs, title, className = '', flat = false }) {
+    const inner = (
+        <>
             <h3>{title}</h3>
             <div className="table-wrapper">
                 <table>
@@ -51,6 +51,9 @@ export default function LogsTable({ logs, title, className = '' }) {
                     </tbody>
                 </table>
             </div>
-        </section>
+        </>
     );
+
+    if (flat) return <div className={className}>{inner}</div>;
+    return <section className={`panel ${className}`.trim()}>{inner}</section>;
 }

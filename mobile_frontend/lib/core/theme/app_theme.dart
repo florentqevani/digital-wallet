@@ -1,23 +1,26 @@
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:mobile_frontend/core/theme/app_colors.dart';
 
 class AppTheme {
   static ThemeData get light {
-    const textTheme = TextTheme(
+    final baseTextTheme = TextTheme(
       titleLarge: TextStyle(
-        fontSize: 22,
+        fontSize: 20,
         fontWeight: FontWeight.w700,
         color: AppColors.textPrimary,
       ),
       titleMedium: TextStyle(
-        fontSize: 18,
+        fontSize: 17,
         fontWeight: FontWeight.w600,
         color: AppColors.textPrimary,
       ),
-      bodyLarge: TextStyle(fontSize: 16, color: AppColors.textPrimary),
-      bodyMedium: TextStyle(fontSize: 14, color: AppColors.textPrimary),
-      bodySmall: TextStyle(fontSize: 13, color: AppColors.textMuted),
+      bodyLarge: TextStyle(fontSize: 15, color: AppColors.textPrimary),
+      bodyMedium: TextStyle(fontSize: 13, color: AppColors.textPrimary),
+      bodySmall: TextStyle(fontSize: 12, color: AppColors.textMuted),
     );
+
+    final textTheme = GoogleFonts.interTextTheme(baseTextTheme);
 
     return ThemeData(
       useMaterial3: true,
@@ -29,6 +32,7 @@ class AppTheme {
         error: AppColors.danger,
       ),
       textTheme: textTheme,
+      fontFamily: GoogleFonts.inter().fontFamily,
       appBarTheme: const AppBarTheme(
         elevation: 0,
         centerTitle: false,

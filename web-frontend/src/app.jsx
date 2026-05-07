@@ -3,11 +3,9 @@ import LoginPage from './pages/login-page';
 import AdminDashboardPage from './pages/admin-dashboard-page';
 import ClientLogsPage from './pages/client-logs-page';
 import UserLogsPage from './pages/user-logs-page';
-import QueryLogsPage from './pages/query-logs-page';
 import UserManagementPage from './pages/user-management-page';
 import BackofficeUsersPage from './pages/backoffice-users-page';
 import ClientAccountsPage from './pages/client-accounts-page';
-import AccountsPage from './pages/accounts-page';
 import PaymentsPage from './pages/payments-page';
 import TopUpPage from './pages/topup-page';
 import BalancePage from './pages/balance-page';
@@ -28,7 +26,6 @@ export default function App() {
                 <Route path="/dashboard" element={<AdminDashboardPage />} />
                 <Route path="/dashboard/client-logs" element={<ClientLogsPage />} />
                 <Route path="/dashboard/user-logs" element={<UserLogsPage />} />
-                <Route path="/dashboard/query" element={<QueryLogsPage />} />
 
                 {/* Identity */}
                 <Route path="/dashboard/users" element={<UserManagementPage />} />
@@ -41,9 +38,6 @@ export default function App() {
                     }
                 />
                 <Route path="/dashboard/users/clients" element={<ClientAccountsPage />} />
-
-                {/* Accounts */}
-                <Route path="/accounts" element={<AccountsPage />} />
 
                 {/* Finance */}
                 <Route path="/payments" element={<PaymentsPage />} />

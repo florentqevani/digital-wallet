@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import LogsTable from '../components/logs-table';
+import LogsBarChart from '../components/logs-bar-chart';
 import StatCard from '../components/stat-card';
 import { getDashboard } from '../lib/api';
 import { useAuth } from '../hooks/use-auth';
@@ -59,9 +59,8 @@ export default function AdminDashboardPage() {
                     {loading && <p>Loading dashboard...</p>}
                 </section>
 
-                <section className="dashboard-latest-grid">
-                    <LogsTable title="Latest Client Logs" logs={latestClientLogs} className="compact-panel" />
-                    <LogsTable title={isSuperAdmin ? 'Latest User Logs' : 'My Latest Logs'} logs={latestUserLogs} className="compact-panel" />
+                <section className="dashboard-chart-row">
+                    <LogsBarChart clientLogs={latestClientLogs} userLogs={latestUserLogs} />
                 </section>
             </section>
         </>

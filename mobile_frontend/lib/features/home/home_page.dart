@@ -74,10 +74,9 @@ class _HomePageState extends State<HomePage>
   Future<void> _signOut() async {
     await controller.logout();
     if (!mounted) return;
-    Navigator.of(context).pushNamedAndRemoveUntil(
-      LoginPage.routeName,
-      (_) => false,
-    );
+    Navigator.of(
+      context,
+    ).pushNamedAndRemoveUntil(LoginPage.routeName, (_) => false);
   }
 
   String _formatAction(String action) {
@@ -247,7 +246,7 @@ class _ActivityTab extends StatelessWidget {
         physics: const AlwaysScrollableScrollPhysics(),
         itemCount:
             items.length + (showSpinner && controller.hasMoreLogs ? 1 : 0),
-        separatorBuilder: (_, __) => const SizedBox(height: 8),
+        separatorBuilder: (_, _) => const SizedBox(height: 8),
         itemBuilder: (context, index) {
           if (index == items.length) {
             return const Padding(
@@ -255,10 +254,7 @@ class _ActivityTab extends StatelessWidget {
               child: Center(child: CircularProgressIndicator()),
             );
           }
-          return ActivityTile(
-            entry: items[index],
-            formatAction: formatAction,
-          );
+          return ActivityTile(entry: items[index], formatAction: formatAction);
         },
       ),
     );
@@ -393,12 +389,12 @@ class _SendMoneyDialogState extends State<_SendMoneyDialog> {
             const SizedBox(height: 12),
             TextField(
               controller: widget.amountCtrl,
-              keyboardType:
-                  const TextInputType.numberWithOptions(decimal: true),
+              keyboardType: const TextInputType.numberWithOptions(
+                decimal: true,
+              ),
               decoration: const InputDecoration(
                 labelText: 'Amount (ALL)',
                 hintText: '0.00',
-                prefixIcon: Icon(Icons.attach_money),
               ),
             ),
             const SizedBox(height: 12),
@@ -414,10 +410,7 @@ class _SendMoneyDialogState extends State<_SendMoneyDialog> {
               const SizedBox(height: 8),
               Text(
                 _error!,
-                style: const TextStyle(
-                  color: AppColors.danger,
-                  fontSize: 13,
-                ),
+                style: const TextStyle(color: AppColors.danger, fontSize: 13),
               ),
             ],
           ],

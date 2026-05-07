@@ -78,20 +78,6 @@ export async function getAccounts(token) {
     return apiRequest('/api/accounts', { method: 'GET' }, token);
 }
 
-export async function addCurrency(token, clientId, currency) {
-    return apiRequest('/api/add-currency', {
-        method: 'POST',
-        body: JSON.stringify({ client_id: clientId, currency }),
-    }, token);
-}
-
-export async function setBalance(token, clientId, balance) {
-    return apiRequest('/api/set-balance', {
-        method: 'POST',
-        body: JSON.stringify({ client_id: clientId, balance }),
-    }, token);
-}
-
 export async function updateClientRequest(token, clientId, payload) {
     return apiRequest(`/api/clients/${clientId}`, {
         method: 'PUT',

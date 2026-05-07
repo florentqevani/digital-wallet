@@ -21,34 +21,42 @@ async function GetTransactionHistory(call, callback) {
             isAll
                 ? pool.query(
                     `SELECT
-                        id,
-                        COALESCE(from_client_id::text, '') AS from_client_id,
-                        to_client_id,
-                        amount,
-                        currency,
-                        type,
-                        status,
-                        COALESCE(note, '') AS note,
-                        EXTRACT(EPOCH FROM created_at)::bigint * 1000 AS created_at
-                     FROM transactions
-                     ORDER BY created_at DESC
+                        t.id,
+                        COALESCE(t.from_client_id::text, '') AS from_client_id,
+                        t.to_client_id,
+                        COALESCE(fc.email, '')               AS from_email,
+                        COALESCE(tc.email, '')               AS to_email,
+                        t.amount,
+                        t.currency,
+                        t.type,
+                        t.status,
+                        COALESCE(t.note, '') AS note,
+                        EXTRACT(EPOCH FROM t.created_at)::bigint * 1000 AS created_at
+                     FROM transactions t
+                     LEFT JOIN clients fc ON fc.id = t.from_client_id
+                     LEFT JOIN clients tc ON tc.id = t.to_client_id
+                     ORDER BY t.created_at DESC
                      LIMIT $1 OFFSET $2`,
                     [safeLimit, safeOffset]
                   )
                 : pool.query(
                     `SELECT
-                        id,
-                        COALESCE(from_client_id::text, '') AS from_client_id,
-                        to_client_id,
-                        amount,
-                        currency,
-                        type,
-                        status,
-                        COALESCE(note, '') AS note,
-                        EXTRACT(EPOCH FROM created_at)::bigint * 1000 AS created_at
-                     FROM transactions
-                     WHERE from_client_id = $1 OR to_client_id = $1
-                     ORDER BY created_at DESC
+                        t.id,
+                        COALESCE(t.from_client_id::text, '') AS from_client_id,
+                        t.to_client_id,
+                        COALESCE(fc.email, '')               AS from_email,
+                        COALESCE(tc.email, '')               AS to_email,
+                        t.amount,
+                        t.currency,
+                        t.type,
+                        t.status,
+                        COALESCE(t.note, '') AS note,
+                        EXTRACT(EPOCH FROM t.created_at)::bigint * 1000 AS created_at
+                     FROM transactions t
+                     LEFT JOIN clients fc ON fc.id = t.from_client_id
+                     LEFT JOIN clients tc ON tc.id = t.to_client_id
+                     WHERE t.from_client_id = $1 OR t.to_client_id = $1
+                     ORDER BY t.created_at DESC
                      LIMIT $2 OFFSET $3`,
                     [client_id, safeLimit, safeOffset]
                   ),
@@ -58,6 +66,8 @@ async function GetTransactionHistory(call, callback) {
             id:             row.id,
             from_client_id: row.from_client_id,
             to_client_id:   row.to_client_id,
+            from_email:     row.from_email,
+            to_email:       row.to_email,
             amount:         parseFloat(row.amount),
             currency:       row.currency,
             type:           row.type,

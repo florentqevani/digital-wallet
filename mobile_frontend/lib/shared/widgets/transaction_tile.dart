@@ -16,7 +16,21 @@ class TransactionTile extends StatelessWidget {
     final amountColor = isCredit ? AppColors.success : AppColors.danger;
     final icon = isCredit ? Icons.arrow_downward : Icons.arrow_upward;
     final iconColor = isCredit ? AppColors.success : AppColors.primary;
-    final title = isTopUp ? 'Top-Up' : (isCredit ? 'Received' : 'Sent');
+
+    // Determine subtitle lines
+    String? counterpartyLine;
+    if (isTopUp) {
+      counterpartyLine = null; // admin top-up, no counterparty
+    } else if (isCredit) {
+      final from = tx.fromEmail.isNotEmpty ? tx.fromEmail : tx.fromClientId;
+      counterpartyLine = 'Received from $from';
+    } else {
+      final to = tx.toEmail.isNotEmpty ? tx.toEmail : tx.toClientId;
+      counterpartyLine = 'Sent to $to';
+    }
+
+    final hasNote = tx.note.isNotEmpty;
+    final isThreeLine = counterpartyLine != null && hasNote;
 
     return Card(
       child: ListTile(
@@ -24,12 +38,28 @@ class TransactionTile extends StatelessWidget {
           backgroundColor: iconColor.withAlpha(30),
           child: Icon(icon, color: iconColor, size: 20),
         ),
-        title: Text(title, style: const TextStyle(fontWeight: FontWeight.w600)),
+        title: Text(
+          isTopUp ? 'Top-Up' : (isCredit ? 'Received' : 'Sent'),
+          style: const TextStyle(fontWeight: FontWeight.w600),
+        ),
         subtitle: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            if (tx.note.isNotEmpty)
-              Text(tx.note, style: const TextStyle(fontSize: 12)),
+            if (counterpartyLine != null)
+              Text(
+                counterpartyLine,
+                style: const TextStyle(
+                  fontSize: 12.5,
+                  fontWeight: FontWeight.w500,
+                ),
+                overflow: TextOverflow.ellipsis,
+              ),
+            if (hasNote)
+              Text(
+                tx.note,
+                style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                overflow: TextOverflow.ellipsis,
+              ),
             Text(
               DateFormat('dd MMM, HH:mm').format(tx.createdAt),
               style: Theme.of(context).textTheme.bodySmall,
@@ -44,7 +74,7 @@ class TransactionTile extends StatelessWidget {
             fontSize: 15,
           ),
         ),
-        isThreeLine: tx.note.isNotEmpty,
+        isThreeLine: isThreeLine,
       ),
     );
   }

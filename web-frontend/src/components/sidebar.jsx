@@ -1,4 +1,5 @@
-import { NavLink, useNavigate } from 'react-router-dom';
+import { useState } from 'react';
+import { NavLink, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/use-auth';
 
 const NAV_GROUPS = [
@@ -8,13 +9,12 @@ const NAV_GROUPS = [
             { to: '/dashboard',            label: 'Overview',    icon: '▤', end: true,  roles: ['user', 'superadmin'] },
             { to: '/dashboard/client-logs', label: 'Client Logs', icon: '📊',            roles: ['user', 'superadmin'] },
             { to: '/dashboard/user-logs',   label: 'User Logs',   icon: '👥',            roles: ['user', 'superadmin'] },
-            { to: '/dashboard/query',       label: 'Query',       icon: '🔍',            roles: ['user', 'superadmin'] },
         ],
     },
     {
         label: 'Users & Clients',
         items: [
-            { to: '/dashboard/users',              label: 'Overview',    icon: '▦', end: true,  roles: ['user', 'superadmin'] },
+            
             { to: '/dashboard/users/backoffice',   label: 'Backoffice',  icon: '🛡',            roles: ['superadmin'] },
             { to: '/dashboard/users/clients',      label: 'Clients',     icon: '🪪',            roles: ['user', 'superadmin'] },
         ],
@@ -27,17 +27,23 @@ const NAV_GROUPS = [
             { to: '/payments/history', label: 'History', icon: '📝', roles: ['user', 'superadmin'] },
         ],
     },
-    {
-        label: 'Accounts',
-        items: [
-            { to: '/accounts', label: 'All Accounts', icon: '🪙', roles: ['user', 'superadmin'] },
-        ],
-    },
 ];
 
 export default function Sidebar({ collapsed, onToggle }) {
     const navigate = useNavigate();
+    const location = useLocation();
     const { role, logout } = useAuth();
+
+    const initialOpen = () => {
+        const state = {};
+        NAV_GROUPS.forEach((g) => { state[g.label] = false; });
+        return state;
+    };
+    const [openGroups, setOpenGroups] = useState(initialOpen);
+
+    const toggleGroup = (label) => {
+        setOpenGroups((prev) => ({ ...prev, [label]: !prev[label] }));
+    };
 
     const handleLogout = () => {
         logout();
@@ -68,25 +74,43 @@ export default function Sidebar({ collapsed, onToggle }) {
                 {NAV_GROUPS.map((group) => {
                     const visibleItems = group.items.filter((item) => item.roles.includes(role));
                     if (visibleItems.length === 0) return null;
+                    const isOpen = collapsed || openGroups[group.label];
+                    const hasActiveChild = visibleItems.every((item) =>
+                        item.end
+                            ? location.pathname === item.to
+                            : location.pathname.startsWith(item.to)
+                    );
                     return (
                         <div key={group.label} className="sidebar-group">
                             {!collapsed && (
-                                <span className="sidebar-group-label">{group.label}</span>
-                            )}
-                            {visibleItems.map(({ to, label, icon, end }) => (
-                                <NavLink
-                                    key={to}
-                                    to={to}
-                                    end={end}
-                                    title={collapsed ? label : undefined}
-                                    className={({ isActive }) =>
-                                        `sidebar-link${isActive ? ' sidebar-link-active' : ''}`
-                                    }
+                                <button
+                                    type="button"
+                                    className={`sidebar-group-toggle${hasActiveChild && !isOpen ? ' sidebar-group-toggle--active' : ''}`}
+                                    onClick={() => toggleGroup(group.label)}
+                                    aria-expanded={isOpen}
                                 >
-                                    <span className="sidebar-icon" aria-hidden="true">{icon}</span>
-                                    {!collapsed && label}
-                                </NavLink>
-                            ))}
+                                    <span className="sidebar-group-toggle-label">{group.label}</span>
+                                    <span className={`sidebar-group-chevron${isOpen ? ' sidebar-group-chevron--open' : ''}`} aria-hidden="true">›</span>
+                                </button>
+                            )}
+                            <div className={`sidebar-group-items${isOpen ? ' sidebar-group-items--open' : ''}`}>
+                                <div>
+                                    {visibleItems.map(({ to, label, icon, end }) => (
+                                        <NavLink
+                                            key={to}
+                                            to={to}
+                                            end={end}
+                                            title={collapsed ? label : undefined}
+                                            className={({ isActive }) =>
+                                                `sidebar-link${isActive ? ' sidebar-link-active' : ''}`
+                                            }
+                                        >
+                                            <span className="sidebar-icon" aria-hidden="true">{icon}</span>
+                                            {!collapsed && label}
+                                        </NavLink>
+                                    ))}
+                                </div>
+                            </div>
                         </div>
                     );
                 })}

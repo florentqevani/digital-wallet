@@ -44,6 +44,8 @@ class TransactionEntry {
     required this.id,
     required this.fromClientId,
     required this.toClientId,
+    required this.fromEmail,
+    required this.toEmail,
     required this.amount,
     required this.currency,
     required this.type,
@@ -55,6 +57,8 @@ class TransactionEntry {
   final String id;
   final String fromClientId;
   final String toClientId;
+  final String fromEmail;
+  final String toEmail;
   final double amount;
   final String currency;
   final String type;
@@ -71,6 +75,8 @@ class TransactionEntry {
       id: (json['id'] ?? '').toString(),
       fromClientId: (json['from_client_id'] ?? '').toString(),
       toClientId: (json['to_client_id'] ?? '').toString(),
+      fromEmail: (json['from_email'] ?? '').toString(),
+      toEmail: (json['to_email'] ?? '').toString(),
       amount: ((json['amount'] ?? 0) as num).toDouble(),
       currency: (json['currency'] ?? 'ALL').toString(),
       type: (json['type'] ?? '').toString(),
