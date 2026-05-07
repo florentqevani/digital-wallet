@@ -90,6 +90,52 @@ class TransactionEntry {
   }
 }
 
+class CreditRequest {
+  CreditRequest({
+    required this.id,
+    required this.requesterId,
+    required this.payerId,
+    required this.requesterEmail,
+    required this.payerEmail,
+    required this.amount,
+    required this.currency,
+    required this.note,
+    required this.status,
+    required this.createdAt,
+  });
+
+  final String id;
+  final String requesterId;
+  final String payerId;
+  final String requesterEmail;
+  final String payerEmail;
+  final double amount;
+  final String currency;
+  final String note;
+  final String status;
+  final DateTime createdAt;
+
+  factory CreditRequest.fromJson(Map<String, dynamic> json) {
+    final rawTs = (json['created_at'] ?? 0).toString();
+    final millis = int.tryParse(rawTs) ?? 0;
+    return CreditRequest(
+      id: (json['id'] ?? '').toString(),
+      requesterId: (json['requester_id'] ?? '').toString(),
+      payerId: (json['payer_id'] ?? '').toString(),
+      requesterEmail: (json['requester_email'] ?? '').toString(),
+      payerEmail: (json['payer_email'] ?? '').toString(),
+      amount: ((json['amount'] ?? 0) as num).toDouble(),
+      currency: (json['currency'] ?? 'ALL').toString(),
+      note: (json['note'] ?? '').toString(),
+      status: (json['status'] ?? 'PENDING').toString(),
+      createdAt: DateTime.fromMillisecondsSinceEpoch(
+        millis,
+        isUtc: true,
+      ).toLocal(),
+    );
+  }
+}
+
 class AuthController extends ChangeNotifier {
   final ApiClient _apiClient = ApiClient();
   final SessionStore _sessionStore = SessionStore();
@@ -110,6 +156,9 @@ class AuthController extends ChangeNotifier {
   List<TransactionEntry> _transactions = <TransactionEntry>[];
   int _logsPage = 1;
   bool _hasMoreLogs = true;
+  bool _requestsBusy = false;
+  List<CreditRequest> _incomingRequests = <CreditRequest>[];
+  List<CreditRequest> _outgoingRequests = <CreditRequest>[];
 
   bool get isBusy => _busy;
   bool get isLogsBusy => _logsBusy;
@@ -126,6 +175,11 @@ class AuthController extends ChangeNotifier {
   List<String> get permissions => List.unmodifiable(_permissions);
   List<ActivityEntry> get recentActivity => List.unmodifiable(_recentActivity);
   List<TransactionEntry> get transactions => List.unmodifiable(_transactions);
+  bool get isRequestsBusy => _requestsBusy;
+  List<CreditRequest> get incomingRequests =>
+      List.unmodifiable(_incomingRequests);
+  List<CreditRequest> get outgoingRequests =>
+      List.unmodifiable(_outgoingRequests);
 
   Future<void> loadSession() async {
     final saved = await _sessionStore.read();
@@ -143,6 +197,7 @@ class AuthController extends ChangeNotifier {
     await fetchLogs(refresh: false);
     await fetchBalance();
     unawaited(fetchTransactionHistory());
+    unawaited(fetchCreditRequests());
   }
 
   Future<bool> register({
@@ -266,6 +321,8 @@ class AuthController extends ChangeNotifier {
     _permissions = <String>[];
     _recentActivity = <ActivityEntry>[];
     _transactions = <TransactionEntry>[];
+    _incomingRequests = <CreditRequest>[];
+    _outgoingRequests = <CreditRequest>[];
     _logsPage = 1;
     _hasMoreLogs = true;
     _setError(null);
@@ -393,6 +450,101 @@ class AuthController extends ChangeNotifier {
     } finally {
       _logsBusy = false;
       notifyListeners();
+    }
+  }
+
+  /// Creates a credit request (requester asks payer_email to send money).
+  /// Returns null on success or an error message string.
+  Future<String?> createCreditRequest({
+    required String payerEmail,
+    required double amount,
+    String note = '',
+  }) async {
+    if (_token.isEmpty) return 'Not authenticated';
+    try {
+      final response = await _apiClient.post(
+        '/api/payments/credit-request',
+        body: {
+          'payer_email': payerEmail.trim(),
+          'amount': amount,
+          'note': note,
+        },
+        token: _token,
+      );
+      if (response['success'] == true) {
+        unawaited(fetchCreditRequests());
+        return null;
+      }
+      return (response['message'] ?? 'Failed to create credit request')
+          .toString();
+    } catch (e) {
+      if (e is ApiException && e.statusCode == 401) {
+        await logout();
+        return 'Session expired. Please log in again.';
+      }
+      return _messageFromError(e);
+    }
+  }
+
+  /// Fetches PENDING incoming (received) and outgoing (sent) credit requests.
+  Future<void> fetchCreditRequests() async {
+    if (_token.isEmpty) return;
+    if (_requestsBusy) return;
+    _requestsBusy = true;
+    notifyListeners();
+    try {
+      final incoming = await _apiClient.get(
+        '/api/payments/credit-requests',
+        token: _token,
+        query: {'direction': 'received', 'status': 'PENDING'},
+      );
+      _incomingRequests =
+          ((incoming['requests'] ?? <dynamic>[]) as List<dynamic>)
+              .whereType<Map<String, dynamic>>()
+              .map(CreditRequest.fromJson)
+              .toList();
+
+      final outgoing = await _apiClient.get(
+        '/api/payments/credit-requests',
+        token: _token,
+        query: {'direction': 'sent', 'status': 'PENDING'},
+      );
+      _outgoingRequests =
+          ((outgoing['requests'] ?? <dynamic>[]) as List<dynamic>)
+              .whereType<Map<String, dynamic>>()
+              .map(CreditRequest.fromJson)
+              .toList();
+    } catch (_) {
+      // Silently fail
+    } finally {
+      _requestsBusy = false;
+      notifyListeners();
+    }
+  }
+
+  /// Accept or reject a pending credit request (called by the payer).
+  /// Returns null on success or an error message string.
+  Future<String?> respondCreditRequest(String requestId, bool accept) async {
+    if (_token.isEmpty) return 'Not authenticated';
+    try {
+      final response = await _apiClient.post(
+        '/api/payments/credit-request/$requestId/respond',
+        body: {'accept': accept},
+        token: _token,
+      );
+      if (response['success'] == true) {
+        if (accept) await fetchBalance();
+        unawaited(fetchCreditRequests());
+        unawaited(fetchTransactionHistory(refresh: true));
+        return null;
+      }
+      return (response['message'] ?? 'Failed to respond').toString();
+    } catch (e) {
+      if (e is ApiException && e.statusCode == 401) {
+        await logout();
+        return 'Session expired. Please log in again.';
+      }
+      return _messageFromError(e);
     }
   }
 

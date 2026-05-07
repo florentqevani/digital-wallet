@@ -6,6 +6,9 @@ service PaymentService {
   rpc AdminTopUp            (AdminTopUpRequest)            returns (AdminTopUpResponse);
   rpc GetBalance            (GetBalanceRequest)            returns (GetBalanceResponse);
   rpc GetTransactionHistory (GetTransactionHistoryRequest) returns (GetTransactionHistoryResponse);
+  rpc CreateCreditRequest  (CreateCreditRequestRequest)  returns (CreateCreditRequestResponse);
+  rpc GetCreditRequests    (GetCreditRequestsRequest)    returns (GetCreditRequestsResponse);
+  rpc RespondCreditRequest (RespondCreditRequestRequest) returns (RespondCreditRequestResponse);
 }
 
 // ── Transfer ─────────────────────────────────────────────────────────────────
@@ -82,4 +85,60 @@ message GetTransactionHistoryResponse {
   repeated Transaction transactions = 2;
   int32             total        = 3;
   string            message      = 4;
+}
+
+// ── Credit requests ───────────────────────────────────────────────────────────
+
+message CreditRequest {
+  string id              = 1;
+  string requester_id    = 2;
+  string payer_id        = 3;
+  string requester_email = 4;
+  string payer_email     = 5;
+  double amount          = 6;
+  string currency        = 7;
+  string note            = 8;
+  string status          = 9;
+  int64  created_at      = 10;
+}
+
+message CreateCreditRequestRequest {
+  string requester_id = 1;
+  string payer_email  = 2;
+  double amount       = 3;
+  string currency     = 4;
+  string note         = 5;
+}
+
+message CreateCreditRequestResponse {
+  bool   success    = 1;
+  string request_id = 2;
+  string message    = 3;
+}
+
+message GetCreditRequestsRequest {
+  string client_id     = 1;
+  string direction     = 2;
+  string status_filter = 3;
+  int32  limit         = 4;
+  int32  offset        = 5;
+}
+
+message GetCreditRequestsResponse {
+  bool             success  = 1;
+  repeated CreditRequest requests = 2;
+  int32            total    = 3;
+  string           message  = 4;
+}
+
+message RespondCreditRequestRequest {
+  string request_id = 1;
+  string payer_id   = 2;
+  bool   accept     = 3;
+}
+
+message RespondCreditRequestResponse {
+  bool   success        = 1;
+  string transaction_id = 2;
+  string message        = 3;
 }
