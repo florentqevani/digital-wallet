@@ -120,13 +120,6 @@ export async function adminTopUp(token, payload) {
     }, token);
 }
 
-export async function transferFunds(token, payload) {
-    return apiRequest('/api/payments/transfer', {
-        method: 'POST',
-        body: JSON.stringify(payload),
-    }, token);
-}
-
 export async function getPaymentBalance(token, clientId) {
     const qs = clientId ? `?client_id=${encodeURIComponent(clientId)}` : '';
     return apiRequest(`/api/payments/balance${qs}`, { method: 'GET' }, token);

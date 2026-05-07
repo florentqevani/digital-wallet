@@ -22,7 +22,7 @@ async function TransferFunds(call, callback) {
 
         // Lock the sender row first to prevent race conditions
         const senderResult = await client.query(
-            'SELECT id, balance FROM clients WHERE id = $1 FOR UPDATE',
+            'SELECT id, balance, email FROM clients WHERE id = $1 FOR UPDATE',
             [from_client_id]
         );
         if (senderResult.rows.length === 0) {
@@ -31,6 +31,7 @@ async function TransferFunds(call, callback) {
         }
 
         const senderBalance = parseFloat(senderResult.rows[0].balance);
+        const senderEmail = senderResult.rows[0].email;
         if (senderBalance < amount) {
             await client.query('ROLLBACK');
             return callback(null, {
@@ -41,13 +42,15 @@ async function TransferFunds(call, callback) {
 
         // Lock recipient row
         const recipientResult = await client.query(
-            'SELECT id FROM clients WHERE id = $1 FOR UPDATE',
+            'SELECT id, email FROM clients WHERE id = $1 FOR UPDATE',
             [to_client_id]
         );
         if (recipientResult.rows.length === 0) {
             await client.query('ROLLBACK');
             return callback(null, { success: false, message: 'Recipient not found' });
         }
+
+        const recipientEmail = recipientResult.rows[0].email;
 
         // Atomic debit / credit
         await client.query('UPDATE clients SET balance = balance - $1 WHERE id = $2', [amount, from_client_id]);
@@ -63,14 +66,14 @@ async function TransferFunds(call, callback) {
 
         await client.query('COMMIT');
 
-        console.log(`✓ Transfer ${amount} ${currency}: ${from_client_id} → ${to_client_id}`);
+        console.log(`✓ Transfer ${amount} ${currency}: ${senderEmail} → ${recipientEmail}`);
 
         publishLog({
-            actor_id:   from_client_id,
+            actor_id:   senderEmail,
             actor_type: 'client',
             action:     'PAYMENT_COMPLETED',
             status:     'SUCCESS',
-            message:    `Transfer of ${amount.toFixed(2)} ${currency} to client ${to_client_id}. Tx: ${txResult.rows[0].id}`,
+            message:    `Transfer of ${amount.toFixed(2)} ${currency} to ${recipientEmail}. Tx: ${txResult.rows[0].id}`,
         });
 
         callback(null, {

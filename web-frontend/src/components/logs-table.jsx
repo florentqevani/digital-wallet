@@ -22,7 +22,7 @@ export default function LogsTable({ logs, title, className = '', flat = false })
                         <tr>
                             <th>Time</th>
                             <th>Actor Type</th>
-                            <th>Actor ID</th>
+                            <th>Actor</th>
                             <th>Action</th>
                             <th>Status</th>
                             <th>Message</th>
@@ -38,7 +38,7 @@ export default function LogsTable({ logs, title, className = '', flat = false })
                             <tr key={log.id || `${log.actor_id}-${log.timestamp}-${log.action}`}>
                                 <td data-label="Time">{formatTimestamp(log.timestamp)}</td>
                                 <td data-label="Actor Type">{log.actor_type || '-'}</td>
-                                <td data-label="Actor ID">{log.actor_id || '-'}</td>
+                                <td data-label="Actor">{log.actor_id || '-'}</td>
                                 <td data-label="Action">{log.action || '-'}</td>
                                 <td data-label="Status">
                                     <span className={`status-pill status-${String(log.status || '').toLowerCase()}`}>
