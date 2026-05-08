@@ -428,6 +428,127 @@ a {
     min-height: 300px;
 }
 
+/* ── Heatmap ──────────────────────────────────────────── */
+
+.heatmap-container {
+    display       : flex;
+    flex-direction: column;
+    gap           : 0.5rem;
+    overflow-x    : auto;
+    padding-bottom: 0.25rem;
+}
+
+.heatmap-axis-row {
+    display    : flex;
+    align-items: flex-end;
+    gap        : 0.5rem;
+}
+
+.heatmap-row {
+    display    : flex;
+    align-items: center;
+    gap        : 0.5rem;
+    position   : relative;
+}
+
+.heatmap-row-label {
+    font-size  : 0.72rem;
+    font-weight: 600;
+    color      : var(--ink-soft);
+    width      : 76px;
+    flex-shrink: 0;
+    text-align : right;
+    white-space: nowrap;
+}
+
+.heatmap-cells {
+    display: flex;
+    gap    : 3px;
+}
+
+.heatmap-axis {
+    align-items: flex-end;
+}
+
+.heatmap-axis-tick {
+    font-size  : 0.67rem;
+    color      : var(--ink-soft);
+    width      : 18px;
+    text-align : center;
+    line-height: 1;
+    white-space: nowrap;
+}
+
+.heatmap-cell {
+    width        : 18px;
+    height       : 18px;
+    border-radius: 3px;
+    background   : var(--line);
+    transition   : transform 80ms ease;
+    cursor       : default;
+}
+
+.heatmap-cell:hover {
+    transform: scale(1.25);
+}
+
+/* intensity levels — uses per-row --cell-accent custom property */
+.heatmap-cell--0 {
+    background: var(--line);
+}
+
+.heatmap-cell--1 {
+    background: color-mix(in srgb, var(--cell-accent) 25%, var(--line));
+}
+
+.heatmap-cell--2 {
+    background: color-mix(in srgb, var(--cell-accent) 50%, var(--line));
+}
+
+.heatmap-cell--3 {
+    background: color-mix(in srgb, var(--cell-accent) 75%, var(--line));
+}
+
+.heatmap-cell--4 {
+    background: var(--cell-accent);
+}
+
+.heatmap-legend {
+    display     : flex;
+    align-items : center;
+    gap         : 3px;
+    margin-top  : 0.3rem;
+    padding-left: 84px;
+    /* align with cells */
+}
+
+.heatmap-legend-cell {
+    width        : 14px;
+    height       : 14px;
+    border-radius: 2px;
+}
+
+.heatmap-legend-label {
+    font-size: 0.68rem;
+    color    : var(--ink-soft);
+    padding  : 0 4px;
+}
+
+.heatmap-tooltip {
+    position      : fixed;
+    background    : var(--bg-elevated);
+    border        : 1px solid var(--line);
+    border-radius : var(--radius-md);
+    padding       : 0.3rem 0.6rem;
+    font-size     : 0.78rem;
+    color         : var(--ink);
+    box-shadow    : var(--shadow-card);
+    pointer-events: none;
+    transform     : translateX(-50%) translateY(-100%);
+    white-space   : nowrap;
+    z-index       : 999;
+}
+
 .panel {
     border       : 1px solid var(--line);
     border-radius: var(--radius-lg);

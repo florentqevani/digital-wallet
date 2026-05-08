@@ -1,71 +1,82 @@
-const express = require('express');
-const { userClient } = require('../grpc-clients');
-const { validateJWT } = require('../middleware/jwt-validator');
-const { promisifyGRPC } = require('../utils/promise-wrapper');
+const express = require("express");
+const { userClient } = require("../grpc-clients");
+const { validateJWT } = require("../middleware/jwt-validator");
+const { promisifyGRPC } = require("../utils/promise-wrapper");
 
 const router = express.Router();
 
-router.get('/', validateJWT(['user', 'superadmin']), async (req, res) => {
-    try {
-        const response = await promisifyGRPC(userClient.ListClients.bind(userClient), {});
-        res.json(response);
-    } catch (error) {
-        console.error('❌ Client list error:', error.message);
-        res.status(500).json({
-            clients: [],
-            message: error.message,
-        });
-    }
+router.get("/", validateJWT(["user", "superadmin"]), async (req, res) => {
+  try {
+    const response = await promisifyGRPC(
+      userClient.ListClients.bind(userClient),
+      {},
+    );
+    res.json(response);
+  } catch (error) {
+    console.error("❌ Client list error:", error.message);
+    res.status(500).json({
+      clients: [],
+      message: error.message,
+    });
+  }
 });
 
-router.put('/:id', validateJWT(['user', 'superadmin']), async (req, res) => {
-    try {
-        const { id } = req.params;
-        const { email, name, password } = req.body;
+router.put("/:id", validateJWT(["user", "superadmin"]), async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { email, name, password } = req.body;
 
-        const response = await promisifyGRPC(userClient.UpdateClient.bind(userClient), {
-            id,
-            email: email || '',
-            name: name || '',
-            password: password || '',
-            updated_by: req.user.user_id,
-        });
+    const response = await promisifyGRPC(
+      userClient.UpdateClient.bind(userClient),
+      {
+        id,
+        email: email || "",
+        name: name || "",
+        password: password || "",
+        updated_by: req.user.user_id,
+        updated_by_role: req.user.role,
+      },
+    );
 
-        if (!response.success) {
-            return res.status(400).json(response);
-        }
-
-        res.json(response);
-    } catch (error) {
-        console.error('❌ Client update error:', error.message);
-        res.status(500).json({
-            success: false,
-            message: error.message,
-        });
+    if (!response.success) {
+      return res.status(400).json(response);
     }
+
+    res.json(response);
+  } catch (error) {
+    console.error("❌ Client update error:", error.message);
+    res.status(500).json({
+      success: false,
+      message: error.message,
+    });
+  }
 });
 
-router.delete('/:id', validateJWT(['user', 'superadmin']), async (req, res) => {
-    try {
-        const { id } = req.params;
+router.delete("/:id", validateJWT(["user", "superadmin"]), async (req, res) => {
+  try {
+    const { id } = req.params;
 
-        const response = await promisifyGRPC(userClient.DeleteClient.bind(userClient), {
-            id,
-            deleted_by: req.user.user_id,
-        });
+    const response = await promisifyGRPC(
+      userClient.DeleteClient.bind(userClient),
+      {
+        id,
+        deleted_by: req.user.user_id,
+        deleted_by_role: req.user.role,
+      },
+    );
 
-        if (!response.success) {
-            return res.status(400).json(response);
-        }
-
-        res.json(response);
-    } catch (error) {
-        console.error('❌ Client delete error:', error.message);
-        res.status(500).json({
-            success: false,
-            message: error.message,
-        });
+    if (!response.success) {
+      return res.status(400).json(response);
     }
+
+    res.json(response);
+  } catch (error) {
+    console.error("❌ Client delete error:", error.message);
+    res.status(500).json({
+      success: false,
+      message: error.message,
+    });
+  }
 });
 
 module.exports = router;

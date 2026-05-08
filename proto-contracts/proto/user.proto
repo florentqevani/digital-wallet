@@ -73,16 +73,18 @@ message ListClientsResponse {
 }
 
 message UpdateClientRequest {
-  string id         = 1;
-  string email      = 2;
-  string name       = 3;
-  string password   = 4;
-  string updated_by = 5;
+  string id               = 1;
+  string email            = 2;
+  string name             = 3;
+  string password         = 4;
+  string updated_by       = 5;
+  string updated_by_role  = 6;  // 'user' | 'superadmin' — the backoffice role of the caller
 }
 
 message DeleteClientRequest {
-  string id         = 1;
-  string deleted_by = 2;
+  string id               = 1;
+  string deleted_by       = 2;
+  string deleted_by_role  = 3;  // 'user' | 'superadmin' — the backoffice role of the caller
 }
 
 message SetCurrencyRequest {

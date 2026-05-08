@@ -17,7 +17,7 @@ export default function UserLogsPage() {
   const [logs, setLogs] = useState([]);
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
-  const [actorType, setActorType] = useState("user");
+  const [actorType, setActorType] = useState("");
   const [actorId, setActorId] = useState("");
   const [range, setRange] = useState("24h");
   const [customFrom, setCustomFrom] = useState(() =>
@@ -89,6 +89,7 @@ export default function UserLogsPage() {
             : "Your own activity log across the platform."}
         </p>
       </section>
+
       <section className="content-grid single-column">
         <section className="panel compact-panel">
           {isSuperAdmin && (
@@ -105,6 +106,7 @@ export default function UserLogsPage() {
                   value={actorType}
                   onChange={(e) => setActorType(e.target.value)}
                 >
+                  <option value="">All Staff</option>
                   <option value="user">User</option>
                   <option value="superadmin">Super Admin</option>
                 </select>
