@@ -2,57 +2,62 @@
 
 > Part of the [GRPC App](../README.md) platform.
 
-The Web Backend-for-Frontend (BFF) is the HTTP server that sits between the React back-office and the API Gateway. It applies JWT verification locally and adds web-specific request shaping.
+The Web Backend-for-Frontend (BFF) is the HTTP server that sits between the React back-office SPA and the API Gateway. It is the only endpoint the React app ever contacts — it applies JWT verification locally and forwards every request to the Gateway.
 
 ---
 
 ## Responsibilities
 
 - Receive HTTP requests from the React web-frontend
-- Verify JWTs locally (no extra round-trip)
-- Proxy requests to the API Gateway over HTTP
-- Shape responses for the web client
+- Verify the JWT locally on every authenticated route using `JWT_SECRET` — no round-trip to Auth Service
+- Proxy all requests to the API Gateway over plain HTTP
+- Shape error responses for the web client
+- Handle CORS for browser-originated requests
 
 ---
 
 ## Port
 
-| Context | Port |
-|---|---|
-| Host (docker-compose) | `3104` |
+| Context                 | Port   |
+| ----------------------- | ------ |
+| Host (docker-compose)   | `3104` |
 | Internal Docker network | `3004` |
 
 ---
 
 ## Routes
 
-| Method | Path | Forwards to |
-|---|---|---|
-| POST | `/api/auth/login` | `API_GATEWAY_URL/api/auth/login` |
-| POST | `/api/auth/register-user` | `API_GATEWAY_URL/api/auth/register-user` |
-| GET | `/api/users` | `API_GATEWAY_URL/api/users` |
-| PUT | `/api/users/:id` | `API_GATEWAY_URL/api/users/:id` |
-| DELETE | `/api/users/:id` | `API_GATEWAY_URL/api/users/:id` |
-| GET | `/api/clients` | `API_GATEWAY_URL/api/clients` |
-| PUT | `/api/clients/:id` | `API_GATEWAY_URL/api/clients/:id` |
-| DELETE | `/api/clients/:id` | `API_GATEWAY_URL/api/clients/:id` |
-| GET/POST | `/api/accounts` | `API_GATEWAY_URL/api/accounts` |
-| GET | `/api/logs` | `API_GATEWAY_URL/api/logs` |
-| GET | `/api/logs/dashboard` | `API_GATEWAY_URL/api/logs/dashboard` |
-| POST | `/api/add-currency` | `API_GATEWAY_URL/api/add-currency` |
-| POST | `/api/set-balance` | `API_GATEWAY_URL/api/set-balance` |
-| GET | `/health` | local health response |
+| Method   | Path                              | Forwards to Gateway               |
+| -------- | --------------------------------- | --------------------------------- |
+| POST     | `/api/auth/login`                 | `/api/auth/login`                 |
+| POST     | `/api/auth/register-user`         | `/api/auth/register-user`         |
+| GET      | `/api/users`                      | `/api/users`                      |
+| PUT      | `/api/users/:id`                  | `/api/users/:id`                  |
+| DELETE   | `/api/users/:id`                  | `/api/users/:id`                  |
+| GET      | `/api/clients`                    | `/api/clients`                    |
+| PUT      | `/api/clients/:id`                | `/api/clients/:id`                |
+| DELETE   | `/api/clients/:id`                | `/api/clients/:id`                |
+| GET/POST | `/api/accounts`                   | `/api/accounts`                   |
+| GET      | `/api/logs/my-logs`               | `/api/logs/my-logs`               |
+| GET      | `/api/logs/dashboard`             | `/api/logs/dashboard`             |
+| GET      | `/api/logs/all`                   | `/api/logs/all`                   |
+| POST     | `/api/add-currency`               | `/api/add-currency`               |
+| POST     | `/api/set-balance`                | `/api/set-balance`                |
+| POST     | `/api/payments/topup`             | `/api/payments/topup`             |
+| POST     | `/api/payments/transfer-by-email` | `/api/payments/transfer-by-email` |
+| GET      | `/api/payments/balance`           | `/api/payments/balance`           |
+| GET      | `/api/payments/history`           | `/api/payments/history`           |
+| GET      | `/health`                         | Local response                    |
 
 ---
 
 ## Environment Variables
 
-| Variable | Description | Default |
-|---|---|---|
-| `PORT` | HTTP listen port | `3001` |
-| `API_GATEWAY_URL` | Base URL of the API Gateway | `http://api-gateway:8080` |
-| `AUTH_SERVICE_URL` | Auth service gRPC address (for direct calls if needed) | `localhost:50051` |
-| `JWT_SECRET` | Shared JWT signing secret (local verification) | — |
+| Variable          | Description                                    | Default                   |
+| ----------------- | ---------------------------------------------- | ------------------------- |
+| `PORT`            | HTTP listen port                               | `3004`                    |
+| `API_GATEWAY_URL` | Base URL of the API Gateway                    | `http://api-gateway:8080` |
+| `JWT_SECRET`      | Shared JWT signing secret (local verification) | —                         |
 
 ---
 
@@ -81,4 +86,3 @@ GET http://localhost:3104/health
 ```
 
 Returns `{ "status": "ok" }`.
-

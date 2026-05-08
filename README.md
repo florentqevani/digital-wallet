@@ -38,19 +38,19 @@ GRPC_app/
 
 ## Services
 
-| Service | Type | Internal port | Role |
-|---|---|---|---|
-| `auth-service` | gRPC | `50051` | Issues and validates JWTs; authenticates clients and back-office users |
-| `user-service` | gRPC | `50053` | CRUD for back-office users and mobile clients; balance and currency management |
-| `payment-service` | gRPC | `50055` | Internal wallet: transfers, top-ups, transaction ledger |
-| `log-service` | gRPC + RMQ | `50052` | Persists audit events via direct gRPC calls and RabbitMQ consumer |
-| `account-service` | RMQ consumer | — | Assigns account IDs to new clients after registration |
-| `api-gateway` | HTTP | `8080` | Translates HTTP to gRPC; enforces auth, roles, and rate limiting |
-| `web-bff` | HTTP | `3004` | BFF for React; verifies JWTs and proxies to the Gateway |
-| `mobile-bff` | HTTP | `3002` | BFF for Flutter; aggregates login response and proxies payments |
-| `web-frontend` | SPA | `5173` dev | React back-office UI |
-| `mobile_frontend` | Flutter | — | Mobile client app |
-| `proto-contracts` | npm package | — | Shared `.proto` files consumed by all Node gRPC services |
+| Service           | Type         | Internal port | Role                                                                           |
+| ----------------- | ------------ | ------------- | ------------------------------------------------------------------------------ |
+| `auth-service`    | gRPC         | `50051`       | Issues and validates JWTs; authenticates clients and back-office users         |
+| `user-service`    | gRPC         | `50053`       | CRUD for back-office users and mobile clients; balance and currency management |
+| `payment-service` | gRPC         | `50055`       | Internal wallet: transfers, top-ups, transaction ledger                        |
+| `log-service`     | gRPC + RMQ   | `50052`       | Persists audit events via direct gRPC calls and RabbitMQ consumer              |
+| `account-service` | RMQ consumer | —             | Assigns account IDs to new clients after registration                          |
+| `api-gateway`     | HTTP         | `8080`        | Translates HTTP to gRPC; enforces auth, roles, and rate limiting               |
+| `web-bff`         | HTTP         | `3004`        | BFF for React; verifies JWTs and proxies to the Gateway                        |
+| `mobile-bff`      | HTTP         | `3002`        | BFF for Flutter; aggregates login response and proxies payments                |
+| `web-frontend`    | SPA          | `5173` dev    | React back-office UI                                                           |
+| `mobile_frontend` | Flutter      | —             | Mobile client app                                                              |
+| `proto-contracts` | npm package  | —             | Shared `.proto` files consumed by all Node gRPC services                       |
 
 ---
 
@@ -61,11 +61,13 @@ GRPC_app/
 The platform has two BFFs — one per frontend. Each BFF is the **only** endpoint its frontend ever contacts. The frontend has no knowledge of the API Gateway or any gRPC service address.
 
 **Web BFF** (host port `3104`):
+
 - Verifies the JWT locally on every authenticated request using the shared `JWT_SECRET` — no round-trip to Auth Service
 - Proxies all requests to the API Gateway over HTTP
 - Handles CORS and web-specific error formatting
 
 **Mobile BFF** (host port `3002`):
+
 - Same JWT verification and proxy behaviour as Web BFF
 - Additionally **aggregates the login response**: after authenticating the client it immediately fetches the last 5 audit events for that client and returns both in a single response, eliminating an extra round-trip from the mobile app
 
@@ -85,11 +87,11 @@ Each service owns its data, has its own database access, and exposes a typed API
 
 **Auth Service** — the credential authority. Verifies passwords with bcrypt, signs JWTs, and embeds `{ id, name, role, permissions }` into every token at login time. After registering a new client it publishes to two RabbitMQ queues: `service-logs` (audit) and `client-registered` (account provisioning).
 
-**User Service** — manages user and client records in `auth_db`. Superadmins manage back-office users; admins manage clients. Exposes balance and currency setters used by the Gateway. Publishes to `service-logs` after any mutation.
+**User Service** — manages user and client records in `auth_db`. Superadmins manage back-office users; operators manage clients. Resolves the caller's `actor_type` dynamically from the database when processing `UpdateClient` and `DeleteClient` so audit records correctly reflect whether the action was taken by a `user` or `superadmin`. Exposes balance and currency setters used by the Gateway. Publishes to `service-logs` after any mutation.
 
-**Payment Service** — the internal wallet. `TransferFunds` debits the sender and credits the receiver atomically in a single `BEGIN … COMMIT` transaction, then records the transfer in the `transactions` table. `AdminTopUp` credits a client without a matching debit. After every successful commit it publishes a `PAYMENT_COMPLETED` or `TOPUP` event to `service-logs`.
+**Payment Service** — the internal wallet. `TransferFunds` debits the sender and credits the receiver atomically in a single `BEGIN … COMMIT` transaction, then records the transfer in the `transactions` table. `AdminTopUp` credits a client without a matching debit, recording the executing admin's UUID as the `actor_id` with `actor_type: superadmin`. After every successful commit it publishes a `PAYMENT_COMPLETED` or `TOPUP` event to `service-logs`.
 
-**Log Service** — the audit store. Accepts direct gRPC `WriteLog` calls and concurrently consumes the `service-logs` RabbitMQ queue. Exposes `QueryLogs` with full filter support (actor, date range, action, pagination) for dashboards and activity feeds.
+**Log Service** — the audit store. Accepts direct gRPC `WriteLog` calls and concurrently consumes the `service-logs` RabbitMQ queue. Exposes `QueryLogs` with filter support (actor type, actor ID, date range, action, pagination) for dashboards and activity feeds. The `GET /api/logs/all` gateway endpoint merges parallel `user` and `superadmin` queries for superadmin callers to provide a unified view. Log entries carry one of three `actor_type` values: `client` (mobile users), `user` (back-office operators), or `superadmin`.
 
 **Account Service** — has no HTTP or gRPC port. It only consumes the `client-registered` queue. When Auth Service registers a new client, Account Service picks up the message and writes the client's `account_id` back to `auth_db.clients`.
 
@@ -97,10 +99,10 @@ Each service owns its data, has its own database access, and exposes a typed API
 
 Two durable RabbitMQ queues:
 
-| Queue | Producers | Consumer | Purpose |
-|---|---|---|---|
-| `service-logs` | Auth, User, Payment | Log Service | Decoupled, loss-free audit event delivery |
-| `client-registered` | Auth Service | Account Service | Triggers account ID assignment after registration |
+| Queue               | Producers           | Consumer        | Purpose                                           |
+| ------------------- | ------------------- | --------------- | ------------------------------------------------- |
+| `service-logs`      | Auth, User, Payment | Log Service     | Decoupled, loss-free audit event delivery         |
+| `client-registered` | Auth Service        | Account Service | Triggers account ID assignment after registration |
 
 All services publish **fire-and-forget** — they do not wait for consumer acknowledgement before returning a response to the caller. If Log Service is temporarily down, events accumulate in RabbitMQ and are consumed when it recovers. Log Service reconnects automatically with a retry loop.
 
@@ -129,12 +131,12 @@ All gRPC services and the API Gateway share Protobuf definitions from `proto-con
 
 Contracts:
 
-| File | Methods |
-|---|---|
-| `auth.proto` | `RegisterClient`, `LoginClient`, `LoginUser`, `ValidateToken`, `CreateToken` |
-| `user.proto` | `ListUsers`, `RegisterUser`, `UpdateUser`, `DeleteUser`, `ListClients`, `UpdateClient`, `DeleteClient`, `SetCurrency`, `SetBalance`, `GetClientBalance` |
-| `payment.proto` | `TransferFunds`, `AdminTopUp`, `GetBalance`, `GetTransactionHistory` |
-| `log.proto` | `WriteLog`, `QueryLogs` |
+| File            | Methods                                                                                                                                                 |
+| --------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `auth.proto`    | `RegisterClient`, `LoginClient`, `LoginUser`, `ValidateToken`, `CreateToken`                                                                            |
+| `user.proto`    | `ListUsers`, `RegisterUser`, `UpdateUser`, `DeleteUser`, `ListClients`, `UpdateClient`, `DeleteClient`, `SetCurrency`, `SetBalance`, `GetClientBalance` |
+| `payment.proto` | `TransferFunds`, `AdminTopUp`, `GetBalance`, `GetTransactionHistory`                                                                                    |
+| `log.proto`     | `WriteLog`, `QueryLogs`                                                                                                                                 |
 
 When a `.proto` file changes, reinstall the package in every affected service before rebuilding its Docker image.
 
@@ -144,14 +146,15 @@ When a `.proto` file changes, reinstall the package in every affected service be
 
 One PostgreSQL container, two databases:
 
-| Database | Used by | Tables |
-|---|---|---|
+| Database  | Used by                      | Tables                             |
+| --------- | ---------------------------- | ---------------------------------- |
 | `auth_db` | Auth, User, Account, Payment | `clients`, `users`, `transactions` |
-| `log_db` | Log Service | `logs` |
+| `log_db`  | Log Service                  | `logs`                             |
 
 `clients` has `balance` and `currency` columns that represent the current wallet state. `transactions` is the immutable ledger — every transfer and top-up is appended here. `logs` stores every audit event published by every service.
 
 Schema initialisation:
+
 - `auth_service/db/init.sql` — creates `clients` and `users`
 - `log-service/db/init.sql` — creates `logs` with indexes on `actor_type`, `actor_id`, `created_at`, and `action`
 
@@ -159,23 +162,23 @@ Schema initialisation:
 
 ## Port Reference
 
-| Service | Host port | Internal port | Protocol |
-|---|---|---|---|
-| API Gateway | `18080` | `8080` | HTTP |
-| Web BFF | `3104` | `3004` | HTTP |
-| Mobile BFF | `3002` | `3002` | HTTP |
-| PostgreSQL | `5433` | `5432` | TCP |
-| RabbitMQ AMQP | `5672` | `5672` | AMQP |
-| RabbitMQ UI | `15672` | `15672` | HTTP |
+| Service       | Host port | Internal port | Protocol |
+| ------------- | --------- | ------------- | -------- |
+| API Gateway   | `18080`   | `8080`        | HTTP     |
+| Web BFF       | `3104`    | `3004`        | HTTP     |
+| Mobile BFF    | `3002`    | `3002`        | HTTP     |
+| PostgreSQL    | `5433`    | `5432`        | TCP      |
+| RabbitMQ AMQP | `5672`    | `5672`        | AMQP     |
+| RabbitMQ UI   | `15672`   | `15672`       | HTTP     |
 
 gRPC services have no host port mapping — they are only reachable inside the Docker network:
 
-| Service | Internal gRPC port |
-|---|---|
-| Auth Service | `50051` |
-| Log Service | `50052` |
-| User Service | `50053` |
-| Payment Service | `50055` |
+| Service         | Internal gRPC port |
+| --------------- | ------------------ |
+| Auth Service    | `50051`            |
+| Log Service     | `50052`            |
+| User Service    | `50053`            |
+| Payment Service | `50055`            |
 
 ---
 
@@ -280,16 +283,16 @@ RabbitMQ management UI: `http://localhost:15672` — check queue depths and cons
 
 Each service README covers its RPC methods, database schema, environment variables, and local development setup.
 
-| Service | README |
-|---|---|
-| Auth Service | [auth_service/ReadME.md](auth_service/ReadME.md) |
-| User Service | [user-service/ReadME.md](user-service/ReadME.md) |
+| Service         | README                                                 |
+| --------------- | ------------------------------------------------------ |
+| Auth Service    | [auth_service/ReadME.md](auth_service/ReadME.md)       |
+| User Service    | [user-service/ReadME.md](user-service/ReadME.md)       |
 | Payment Service | [payment-service/readme.md](payment-service/readme.md) |
-| Log Service | [log-service/ReadME.md](log-service/ReadME.md) |
+| Log Service     | [log-service/ReadME.md](log-service/ReadME.md)         |
 | Account Service | [account-service/README.md](account-service/README.md) |
-| API Gateway | [api-getaway/README.md](api-getaway/README.md) |
-| Web BFF | [web-bff/ReadME.md](web-bff/ReadME.md) |
-| Mobile BFF | [mobile-bff/ReadME.md](mobile-bff/ReadME.md) |
+| API Gateway     | [api-getaway/README.md](api-getaway/README.md)         |
+| Web BFF         | [web-bff/ReadME.md](web-bff/ReadME.md)                 |
+| Mobile BFF      | [mobile-bff/ReadME.md](mobile-bff/ReadME.md)           |
 | Proto Contracts | [proto-contracts/readME.md](proto-contracts/readME.md) |
-| Web Frontend | [web-frontend/README.md](web-frontend/README.md) |
+| Web Frontend    | [web-frontend/README.md](web-frontend/README.md)       |
 | Mobile Frontend | [mobile_frontend/README.md](mobile_frontend/README.md) |

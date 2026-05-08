@@ -18,20 +18,20 @@ gRPC microservice that manages the internal wallet system. Handles peer-to-peer 
 
 ## gRPC Port
 
-| Context | Port |
-|---|---|
+| Context                 | Port    |
+| ----------------------- | ------- |
 | Internal Docker network | `50055` |
-| Health HTTP (host) | `15055` |
+| Health HTTP (host)      | `15055` |
 
 ---
 
 ## RPC Methods (`payment.proto`)
 
-| Method | Description |
-|---|---|
-| `TransferFunds` | Atomic debit/credit between two clients; records a `TRANSFER` transaction |
-| `AdminTopUp` | Credits a client's balance; records a `TOPUP` transaction |
-| `GetBalance` | Returns current balance and currency for a client |
+| Method                  | Description                                                               |
+| ----------------------- | ------------------------------------------------------------------------- |
+| `TransferFunds`         | Atomic debit/credit between two clients; records a `TRANSFER` transaction |
+| `AdminTopUp`            | Credits a client's balance; records a `TOPUP` transaction                 |
+| `GetBalance`            | Returns current balance and currency for a client                         |
 | `GetTransactionHistory` | Paginated ledger. Omit `client_id` to return all transactions (admin use) |
 
 ---
@@ -40,48 +40,48 @@ gRPC microservice that manages the internal wallet system. Handles peer-to-peer 
 
 Uses the shared `auth_db` PostgreSQL database.
 
-| Table | Purpose |
-|---|---|
-| `clients` | Stores `balance` and `currency` columns used for wallet state |
-| `transactions` | Full ledger of all `TRANSFER` and `TOPUP` records |
+| Table          | Purpose                                                       |
+| -------------- | ------------------------------------------------------------- |
+| `clients`      | Stores `balance` and `currency` columns used for wallet state |
+| `transactions` | Full ledger of all `TRANSFER` and `TOPUP` records             |
 
 ### `transactions` columns
 
-| Column | Type | Description |
-|---|---|---|
-| `id` | UUID | Primary key |
+| Column           | Type            | Description                      |
+| ---------------- | --------------- | -------------------------------- |
+| `id`             | UUID            | Primary key                      |
 | `from_client_id` | UUID (nullable) | Sender; `NULL` for admin top-ups |
-| `to_client_id` | UUID | Recipient |
-| `amount` | Decimal | Transfer amount |
-| `currency` | Text | e.g. `ALL` |
-| `type` | Text | `TRANSFER` or `TOPUP` |
-| `status` | Text | `COMPLETED` |
-| `note` | Text | Optional memo |
-| `created_at` | Timestamp | Auto-set on insert |
+| `to_client_id`   | UUID            | Recipient                        |
+| `amount`         | Decimal         | Transfer amount                  |
+| `currency`       | Text            | e.g. `ALL`                       |
+| `type`           | Text            | `TRANSFER` or `TOPUP`            |
+| `status`         | Text            | `COMPLETED`                      |
+| `note`           | Text            | Optional memo                    |
+| `created_at`     | Timestamp       | Auto-set on insert               |
 
 ---
 
 ## RabbitMQ
 
-Publishes to the `service-logs` queue (durable) after every successful commit.
+Publishes to the `service-logs` queue (durable) after every successful commit. Messages are fire-and-forget — the service does not wait for consumer acknowledgement before returning a response.
 
-| Event action | Trigger | actor_type |
-|---|---|---|
-| `PAYMENT_COMPLETED` | Successful `TransferFunds` | `client` |
-| `TOPUP` | Successful `AdminTopUp` | `admin` |
+| Event action        | Trigger                    | actor_type   | actor_id             |
+| ------------------- | -------------------------- | ------------ | -------------------- |
+| `PAYMENT_COMPLETED` | Successful `TransferFunds` | `client`     | sender's client UUID |
+| `TOPUP`             | Successful `AdminTopUp`    | `superadmin` | admin's user UUID    |
 
-Failed operations also publish a `FAILURE` status event for audit visibility.
+Failed operations also publish an event with `status: FAILURE` for audit visibility.
 
 ---
 
 ## Environment Variables
 
-| Variable | Description | Default |
-|---|---|---|
-| `PORT` | gRPC listen port | `50055` |
-| `HEALTH_PORT` | HTTP health port | `15055` |
-| `AUTH_DB_URL` | PostgreSQL connection string for `auth_db` | — |
-| `RABBITMQ_URL` | RabbitMQ connection string | `amqp://app:secret@rabbitmq:5672` |
+| Variable       | Description                                | Default                           |
+| -------------- | ------------------------------------------ | --------------------------------- |
+| `PORT`         | gRPC listen port                           | `50055`                           |
+| `HEALTH_PORT`  | HTTP health port                           | `15055`                           |
+| `AUTH_DB_URL`  | PostgreSQL connection string for `auth_db` | —                                 |
+| `RABBITMQ_URL` | RabbitMQ connection string                 | `amqp://app:secret@rabbitmq:5672` |
 
 ---
 

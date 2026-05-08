@@ -8,14 +8,14 @@ Flutter mobile application for end-users (clients). Supports registration, login
 
 ## Features
 
-| Screen | Description |
-|---|---|
-| Register | Create a new client account |
-| Login | Authenticate and persist session (JWT in SharedPreferences) |
-| Home — Balance Card | Shows "Signed in as [name]", current balance, and Send Money shortcut |
-| Home — Activity Tab | Paginated audit log with infinite scroll and pull-to-refresh |
-| Home — Transactions Tab | Transfer history with credit/debit colour coding and pull-to-refresh |
-| Send Money Dialog | Peer-to-peer transfer by recipient email with inline validation |
+| Screen                  | Description                                                           |
+| ----------------------- | --------------------------------------------------------------------- |
+| Register                | Create a new client account                                           |
+| Login                   | Authenticate and persist session (JWT in SharedPreferences)           |
+| Home — Balance Card     | Shows "Signed in as [name]", current balance, and Send Money shortcut |
+| Home — Activity Tab     | Paginated audit log with infinite scroll and pull-to-refresh          |
+| Home — Transactions Tab | Transfer history with credit/debit colour coding and pull-to-refresh  |
+| Send Money Dialog       | Peer-to-peer transfer by recipient email with inline validation       |
 
 ---
 
@@ -33,12 +33,12 @@ The JWT is stored in `SharedPreferences` after login and sent as a `Bearer` toke
 
 ## Tech Stack
 
-| Package | Purpose |
-|---|---|
-| `http` | HTTP client for API calls |
-| `shared_preferences` | Persistent JWT and session storage |
-| `provider` | State management via `AuthController` (ChangeNotifier) |
-| `intl` | Date and currency formatting |
+| Package              | Purpose                                                |
+| -------------------- | ------------------------------------------------------ |
+| `http`               | HTTP client for API calls                              |
+| `shared_preferences` | Persistent JWT and session storage                     |
+| `provider`           | State management via `AuthController` (ChangeNotifier) |
+| `intl`               | Date and currency formatting                           |
 
 ---
 
@@ -54,12 +54,12 @@ The JWT is stored in `SharedPreferences` after login and sent as a `Bearer` toke
 
 ## Shared Widgets
 
-| Widget | File | Description |
-|---|---|---|
-| `BalanceCard` | `shared/widgets/balance_card.dart` | Balance + name header card |
-| `ActivityTile` | `shared/widgets/activity_tile.dart` | Single audit log entry |
-| `TransactionTile` | `shared/widgets/transaction_tile.dart` | Single transaction with +/- styling |
-| `EmptyState` | `shared/widgets/empty_state.dart` | Pull-to-refresh compatible empty list |
+| Widget            | File                                   | Description                           |
+| ----------------- | -------------------------------------- | ------------------------------------- |
+| `BalanceCard`     | `shared/widgets/balance_card.dart`     | Balance + name header card            |
+| `ActivityTile`    | `shared/widgets/activity_tile.dart`    | Single audit log entry                |
+| `TransactionTile` | `shared/widgets/transaction_tile.dart` | Single transaction with +/- styling   |
+| `EmptyState`      | `shared/widgets/empty_state.dart`      | Pull-to-refresh compatible empty list |
 
 ---
 
@@ -67,66 +67,31 @@ The JWT is stored in `SharedPreferences` after login and sent as a `Bearer` toke
 
 Set in `lib/core/config/`:
 
-| Environment | Default URL |
-|---|---|
-| Android emulator | `http://10.0.2.2:3002` |
+| Environment            | Default URL                     |
+| ---------------------- | ------------------------------- |
+| Android emulator       | `http://10.0.2.2:3002`          |
 | Physical device / prod | Override via env or config file |
 
 ---
 
-## Features
+## Local Development
 
-| Screen | Description |
-|---|---|
-| Register | Create a new client account |
-| Login | Authenticate and persist session |
-| Home | View account balance and summary |
-| Payment | Initiate a top-up via RaiAccept WebView |
-| Logs | View recent account activity |
-
----
-
-## How It Connects
-
-All API calls go to the **Mobile BFF** (`http://localhost:3002` by default):
-
-```
-Flutter app → Mobile BFF (HTTP :3002) → API Gateway (HTTP :8080) → gRPC services
+```bash
+cd mobile_frontend
+flutter pub get
+flutter run        # targets connected device or emulator
 ```
 
-The JWT is stored in `SharedPreferences` after login and sent as a `Bearer` token on every subsequent request.
-
----
-
-## Payment Flow (WebView)
-
-1. App calls `POST /api/payments/initiate` → BFF returns `payment_form_url` and `rai_order_id`
-2. App opens a `WebView` on `payment_form_url` (hosted RaiAccept checkout page)
-3. `NavigationDelegate` intercepts the callback URL (`http://mobile.callback/success`)
-4. WebView is closed; app calls `POST /api/payments/confirm` with `rai_order_id`
-5. On success, balance is updated and shown to the user
-
----
-
-## Tech Stack
-
-| Package | Purpose |
-|---|---|
-| `http` | HTTP client for API calls |
-| `shared_preferences` | Persistent JWT and session storage |
-| `webview_flutter` | Embedded browser for RaiAccept checkout |
-| `intl` | Date and currency formatting |
-
----
+For the Android emulator the base URL `http://10.0.2.2:3002` routes to the host machine's port 3002 where the Mobile BFF listens. For a physical device, update the base URL in `lib/core/config/` to match your machine's local IP.
 
 ## Base URL Configuration
 
 The API base URL is set in `lib/core/config/`:
 
-| Environment | Default URL |
-|---|---|
-| Android emulator | `http://10.0.2.2:3002` |
-| Web / desktop | `http://localhost:3002` |
+| Environment      | Default URL             |
+| ---------------- | ----------------------- |
+| Android emulator | `http://10.0.2.2:3002`  |
+| Web / desktop    | `http://localhost:3002` |
 
 Override via compile-time environment variable `MOBILE_API_BASE_URL` if needed.
 
