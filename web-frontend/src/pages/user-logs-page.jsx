@@ -86,7 +86,7 @@ export default function UserLogsPage() {
         <p>
           {isSuperAdmin
             ? "Audit trail for all backoffice operator actions."
-            : "Your own activity log across the platform."}
+            : "Your activity log across the platform."}
         </p>
       </section>
 
