@@ -180,28 +180,69 @@ router.get('/dashboard', validateJWT(['user', 'superadmin']), async (req, res) =
 });
 
 // GET /logs/all
+// For staff roles (user / superadmin) this endpoint is scoped to staff actor types only
+// (actor_type = 'user' | 'superadmin'). Client logs are served exclusively via /logs (client-logs page).
+// When no actor_type is supplied by a superadmin, two parallel queries are merged so that
+// client rows never leak into the staff log view.
 router.get('/all', validateJWT(['user', 'superadmin']), async (req, res) => {
     try {
         const { actor_type, actor_id, from, to, page = 1, limit = 50 } = req.query;
 
-        const scopedActorType = (req.user.role === 'user' && actor_type !== 'client')
-            ? 'user'
-            : (actor_type || '');
-        const scopedActorId = (req.user.role === 'user' && actor_type !== 'client')
-            ? req.user.user_id
-            : (actor_id || '');
-
-        const response = await promisifyGRPC(logClient.QueryLogs.bind(logClient), {
-            actor_type: scopedActorType,
-            actor_id: scopedActorId,
+        const safeLimit = Math.min(Number.parseInt(limit, 10) || 50, 100);
+        const safePage  = Number.parseInt(page, 10) || 1;
+        const grpcBase  = {
+            actor_id: '',
             action: req.query.action || '',
             from: from ? Number.parseInt(from, 10) : 0,
-            to: to ? Number.parseInt(to, 10) : 0,
-            page: Number.parseInt(page, 10) || 1,
-            limit: Math.min(Number.parseInt(limit, 10) || 50, 100),
-        });
+            to:   to   ? Number.parseInt(to,   10) : 0,
+            page: safePage,
+            limit: safeLimit,
+        };
 
-        return res.json(response);
+        // 'user' role: always scoped to their own entries, never clients
+        if (req.user.role === 'user') {
+            const response = await promisifyGRPC(logClient.QueryLogs.bind(logClient), {
+                ...grpcBase,
+                actor_type: 'user',
+                actor_id: req.user.user_id,
+            });
+            return res.json(response);
+        }
+
+        // superadmin with explicit actor_type — honour it (allows 'user' or 'superadmin' filter)
+        if (actor_type && actor_type !== '') {
+            const response = await promisifyGRPC(logClient.QueryLogs.bind(logClient), {
+                ...grpcBase,
+                actor_type,
+                actor_id: actor_id || '',
+            });
+            return res.json(response);
+        }
+
+        // superadmin with no actor_type filter: merge user + superadmin, exclude clients
+        const [userRes, superadminRes] = await Promise.all([
+            promisifyGRPC(logClient.QueryLogs.bind(logClient), {
+                ...grpcBase,
+                actor_type: 'user',
+                actor_id: actor_id || '',
+            }),
+            promisifyGRPC(logClient.QueryLogs.bind(logClient), {
+                ...grpcBase,
+                actor_type: 'superadmin',
+                actor_id: actor_id || '',
+            }),
+        ]);
+
+        const merged = [
+            ...(userRes.logs || []),
+            ...(superadminRes.logs || []),
+        ].sort((a, b) => Number(b.timestamp || 0) - Number(a.timestamp || 0))
+         .slice(0, safeLimit);
+
+        return res.json({
+            logs: merged,
+            total: (userRes.total || 0) + (superadminRes.total || 0),
+        });
     } catch (error) {
         console.error('Error fetching all logs:', error.message);
         return res.status(500).json({
