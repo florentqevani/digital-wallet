@@ -85,7 +85,7 @@ async function CreateCreditRequest(call, callback) {
     );
     publishLog({
       actor_id: requesterEmail,
-      actor_type: "user",
+      actor_type: "client",
       action: "CREATE_CREDIT_REQUEST",
       status: "SUCCESS",
       message: `Credit request of ${amount.toFixed(2)} ${currency} sent to ${payer_email}. Request ID: ${requestId}`,
@@ -100,7 +100,7 @@ async function CreateCreditRequest(call, callback) {
     console.error("❌ CreateCreditRequest error:", err.message);
     publishLog({
       actor_id: requester_id,
-      actor_type: "user",
+      actor_type: "client",
       action: "CREATE_CREDIT_REQUEST",
       status: "FAILURE",
       message: err.message,

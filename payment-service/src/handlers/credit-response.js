@@ -95,7 +95,7 @@ async function RespondCreditRequest(call, callback) {
       );
       publishLog({
         actor_id: payerEmail,
-        actor_type: "user",
+        actor_type: "client",
         action: "RESPOND_CREDIT_REQUEST",
         status: "SUCCESS",
         message: `Credit request accepted. ${parseFloat(req.amount).toFixed(2)} ${req.currency} sent to ${requesterEmail}.`,
@@ -109,7 +109,7 @@ async function RespondCreditRequest(call, callback) {
       console.log(`✓ Credit request ${request_id} rejected by ${payerEmail}`);
       publishLog({
         actor_id: payerEmail,
-        actor_type: "user",
+        actor_type: "client",
         action: "RESPOND_CREDIT_REQUEST",
         status: "SUCCESS",
         message: `Credit request ${request_id} rejected.`,
@@ -133,7 +133,7 @@ async function RespondCreditRequest(call, callback) {
     console.error("❌ RespondCreditRequest error:", err.message);
     publishLog({
       actor_id: payer_id,
-      actor_type: "user",
+      actor_type: "client",
       action: "RESPOND_CREDIT_REQUEST",
       status: "FAILURE",
       message: err.message,
