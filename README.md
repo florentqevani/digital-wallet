@@ -1,4 +1,4 @@
-# GRPC App
+# Microservice App
 
 A microservices platform with two client experiences:
 
