@@ -173,13 +173,18 @@ services:
     restart: unless-stopped
     environment:
       NODE_ENV: production
+      PORT: 50054
+      HEALTH_PORT: 15054
       AUTH_DB_URL: postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/auth_db
+      LOG_SERVICE_URL: log-service:50052
       RABBITMQ_URL: amqp://${RABBITMQ_USER}:${RABBITMQ_PASS}@rabbitmq:5672
     depends_on:
       postgres:
         condition: service_healthy
       rabbitmq:
         condition: service_healthy
+    ports:
+      - "15054:15054"
 
   payment-service:
     build:
