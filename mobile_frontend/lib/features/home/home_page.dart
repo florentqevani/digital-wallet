@@ -75,6 +75,15 @@ class _HomePageState extends State<HomePage>
     });
   }
 
+  Future<void> _refreshAll() async {
+    await Future.wait([
+      controller.fetchBalance(),
+      Future(() => _triggerFetch(refresh: true)),
+      controller.fetchTransactionHistory(refresh: true),
+      controller.fetchCreditRequests(),
+    ]);
+  }
+
   Future<void> _signOut() async {
     await controller.logout();
     if (!mounted) return;
@@ -213,49 +222,61 @@ class _HomePageState extends State<HomePage>
         backgroundColor: AppColors.primary,
       ),
       body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              BalanceCard(
-                name: controller.name,
-                balance: controller.balance,
-                currency: controller.currency,
-                onSend: _showSendMoneyDialog,
-                successMessage: _transferSuccess,
-              ),
-              const SizedBox(height: 14),
-              TabBar(
-                controller: _tabController,
-                tabs: const [
-                  Tab(text: 'Activity'),
-                  Tab(text: 'Transactions'),
-                  Tab(text: 'Requests'),
-                ],
-              ),
-              const SizedBox(height: 8),
-              Expanded(
-                child: TabBarView(
-                  controller: _tabController,
+        child: RefreshIndicator(
+          onRefresh: _refreshAll,
+          child: SingleChildScrollView(
+            physics: const AlwaysScrollableScrollPhysics(),
+            child: SizedBox(
+              height:
+                  MediaQuery.of(context).size.height -
+                  MediaQuery.of(context).padding.top -
+                  kToolbarHeight,
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    _ActivityTab(
-                      controller: controller,
-                      scrollController: _scrollController,
-                      showSpinner: _showSpinner,
-                      onRefresh: () async => _triggerFetch(refresh: true),
-                      formatAction: _formatAction,
+                    BalanceCard(
+                      name: controller.name,
+                      balance: controller.balance,
+                      currency: controller.currency,
+                      onSend: _showSendMoneyDialog,
+                      successMessage: _transferSuccess,
                     ),
-                    _TransactionsTab(controller: controller),
-                    _RequestsTab(
-                      controller: controller,
-                      successMessage: _requestSuccess,
-                      onRequestMoney: _showRequestMoneyDialog,
+                    const SizedBox(height: 14),
+                    TabBar(
+                      controller: _tabController,
+                      tabs: const [
+                        Tab(text: 'Activity'),
+                        Tab(text: 'Transactions'),
+                        Tab(text: 'Requests'),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    Expanded(
+                      child: TabBarView(
+                        controller: _tabController,
+                        children: [
+                          _ActivityTab(
+                            controller: controller,
+                            scrollController: _scrollController,
+                            showSpinner: _showSpinner,
+                            onRefresh: () async => _triggerFetch(refresh: true),
+                            formatAction: _formatAction,
+                          ),
+                          _TransactionsTab(controller: controller),
+                          _RequestsTab(
+                            controller: controller,
+                            successMessage: _requestSuccess,
+                            onRequestMoney: _showRequestMoneyDialog,
+                          ),
+                        ],
+                      ),
                     ),
                   ],
                 ),
               ),
-            ],
+            ),
           ),
         ),
       ),
