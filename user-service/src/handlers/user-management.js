@@ -314,6 +314,19 @@ async function DeleteClient(call, callback) {
   if (!id) {
     return callback(null, { success: false, message: "Client id is required" });
   }
+  const balanceResult = await pool.query(
+    "SELECT COALESCE(SUM(balance), 0)::float AS total FROM accounts WHERE client_id = $1",
+    [id],
+  );
+  if (balanceResult.rows.length > 0) {
+    const balance = parseFloat(balanceResult.rows[0].total);
+    if (balance > 0) {
+      return callback(null, {
+        success: false,
+        message: "Account cannot be deleted: transfer funds first",
+      });
+    }
+  }
 
   try {
     const actorType = await resolveActorType(deleted_by, deleted_by_role);

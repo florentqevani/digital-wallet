@@ -31,10 +31,6 @@ app.use("/health", healthRoutes);
 app.use("/api/health", healthRoutes);
 
 // API routes
-app.use("/auth", authRoutes);
-app.use("/clients", clientsRoutes);
-app.use("/logs", logsRoutes);
-app.use("/users", usersRoutes);
 app.use("/api/auth", authRoutes);
 app.use("/api/clients", clientsRoutes);
 app.use("/api/logs", logsRoutes);

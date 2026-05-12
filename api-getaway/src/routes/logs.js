@@ -33,7 +33,7 @@ router.post("/write", apiLimiter, async (req, res) => {
     return res.json(response);
   } catch (error) {
     console.error("Write log error:", error.message);
-    return res.status(500).json({
+    return res.status(error.httpStatus || 500).json({
       saved: false,
       message: error.message,
     });
@@ -58,7 +58,7 @@ router.post("/query", apiLimiter, async (req, res) => {
     return res.json(response);
   } catch (error) {
     console.error("Query logs error:", error.message);
-    return res.status(500).json({
+    return res.status(error.httpStatus || 500).json({
       logs: [],
       total: 0,
       message: error.message,
@@ -87,7 +87,7 @@ router.get(
       return res.json(response);
     } catch (error) {
       console.error("Error fetching my-logs:", error.message);
-      return res.status(500).json({
+      return res.status(error.httpStatus || 500).json({
         error: "Failed to fetch logs",
         message: error.message,
       });
@@ -195,7 +195,7 @@ router.get(
       });
     } catch (error) {
       console.error("Error fetching dashboard:", error.message);
-      return res.status(500).json({
+      return res.status(error.httpStatus || 500).json({
         error: "Failed to fetch dashboard",
         message: error.message,
       });
@@ -273,7 +273,7 @@ router.get("/all", validateJWT(["user", "superadmin"]), async (req, res) => {
     });
   } catch (error) {
     console.error("Error fetching all logs:", error.message);
-    return res.status(500).json({
+    return res.status(error.httpStatus || 500).json({
       error: "Failed to fetch logs",
       message: error.message,
     });
@@ -305,7 +305,7 @@ router.get(
       return res.json(response);
     } catch (error) {
       console.error("Error fetching client logs:", error.message);
-      return res.status(500).json({
+      return res.status(error.httpStatus || 500).json({
         error: "Failed to fetch client logs",
         message: error.message,
       });
@@ -339,7 +339,7 @@ router.get(
       return res.json(response);
     } catch (error) {
       console.error("Error fetching payment logs:", error.message);
-      return res.status(500).json({
+      return res.status(error.httpStatus || 500).json({
         error: "Failed to fetch payment logs",
         message: error.message,
       });
@@ -372,7 +372,7 @@ router.get(
       return res.json(response);
     } catch (error) {
       console.error("Error fetching account logs:", error.message);
-      return res.status(500).json({
+      return res.status(error.httpStatus || 500).json({
         error: "Failed to fetch account logs",
         message: error.message,
       });

@@ -26,7 +26,7 @@ router.get(
     } catch (error) {
       console.error("❌ List accounts error:", error.message);
       return res
-        .status(500)
+        .status(error.httpStatus || 500)
         .json({ accounts: [], total: 0, message: error.message });
     }
   },
@@ -54,7 +54,9 @@ router.post("/self", validateJWT(["client"]), async (req, res) => {
     res.status(202).json({ success: true, message: "Account creation queued" });
   } catch (error) {
     console.error("❌ Self create account error:", error.message);
-    return res.status(500).json({ success: false, message: error.message });
+    return res
+      .status(error.httpStatus || 500)
+      .json({ success: false, message: error.message });
   }
 });
 
@@ -81,7 +83,9 @@ router.post("/", validateJWT(["superadmin"]), async (req, res) => {
     });
   } catch (error) {
     console.error("❌ Create account error:", error.message);
-    return res.status(500).json({ success: false, message: error.message });
+    return res
+      .status(error.httpStatus || 500)
+      .json({ success: false, message: error.message });
   }
 });
 
@@ -98,7 +102,9 @@ router.delete("/:account_id", validateJWT(["superadmin"]), async (req, res) => {
     res.status(202).json({ success: true, message: "Account deletion queued" });
   } catch (error) {
     console.error("❌ Delete account error:", error.message);
-    return res.status(500).json({ success: false, message: error.message });
+    return res
+      .status(error.httpStatus || 500)
+      .json({ success: false, message: error.message });
   }
 });
 
@@ -127,7 +133,9 @@ router.patch(
       });
     } catch (error) {
       console.error("❌ Update account status error:", error.message);
-      return res.status(500).json({ success: false, message: error.message });
+      return res
+        .status(error.httpStatus || 500)
+        .json({ success: false, message: error.message });
     }
   },
 );

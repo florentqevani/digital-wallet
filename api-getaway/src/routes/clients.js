@@ -14,7 +14,7 @@ router.get("/", validateJWT(["user", "superadmin"]), async (req, res) => {
     res.json(response);
   } catch (error) {
     console.error("❌ Client list error:", error.message);
-    res.status(500).json({
+    res.status(error.httpStatus || 500).json({
       clients: [],
       message: error.message,
     });
@@ -45,7 +45,7 @@ router.put("/:id", validateJWT(["user", "superadmin"]), async (req, res) => {
     res.json(response);
   } catch (error) {
     console.error("❌ Client update error:", error.message);
-    res.status(500).json({
+    res.status(error.httpStatus || 500).json({
       success: false,
       message: error.message,
     });
@@ -72,7 +72,7 @@ router.delete("/:id", validateJWT(["user", "superadmin"]), async (req, res) => {
     res.json(response);
   } catch (error) {
     console.error("❌ Client delete error:", error.message);
-    res.status(500).json({
+    res.status(error.httpStatus || 500).json({
       success: false,
       message: error.message,
     });

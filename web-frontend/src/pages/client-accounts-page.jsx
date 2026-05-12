@@ -82,10 +82,14 @@ export default function ClientAccountsPage() {
     }
   };
 
-  const removeClient = async (clientId, email) => {
+  const removeClient = async (client) => {
+    if ((client.balance ?? 0) > 0) {
+      setError("Account cannot be deleted: transfer funds first.");
+      return;
+    }
     if (
       !globalThis.confirm(
-        `Delete client ${email}? This action cannot be undone.`,
+        `Delete client ${client.email}? This action cannot be undone.`,
       )
     )
       return;
@@ -93,11 +97,11 @@ export default function ClientAccountsPage() {
     setError("");
     setSuccess("");
     try {
-      const response = await deleteClientRequest(token, clientId);
+      const response = await deleteClientRequest(token, client.id);
       if (!response.success)
         throw new Error(response.message || "Failed to delete client");
       setSuccess("Client deleted successfully.");
-      if (editingClientId === clientId) setEditingClientId("");
+      if (editingClientId === client.id) setEditingClientId("");
       await load();
     } catch (err) {
       setError(err.message);
@@ -245,9 +249,7 @@ export default function ClientAccountsPage() {
                               <button
                                 type="button"
                                 className="button-danger"
-                                onClick={() =>
-                                  removeClient(client.id, client.email)
-                                }
+                                onClick={() => removeClient(client)}
                                 disabled={saving}
                               >
                                 Delete

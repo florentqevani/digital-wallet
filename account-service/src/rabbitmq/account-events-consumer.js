@@ -26,6 +26,21 @@ async function handleDeleteAccount(payload) {
     throw new Error("account_id is required");
   }
 
+  const { rows } = await pool.query(
+    "SELECT balance FROM accounts WHERE id = $1",
+    [payload.account_id],
+  );
+
+  if (rows.length === 0) {
+    throw new Error(`Account ${payload.account_id} not found`);
+  }
+
+  if (parseFloat(rows[0].balance) > 0) {
+    throw new Error(
+      `Account ${payload.account_id} cannot be deleted: balance is ${rows[0].balance}`,
+    );
+  }
+
   await pool.query("DELETE FROM accounts WHERE id = $1", [payload.account_id]);
 }
 
@@ -112,11 +127,18 @@ async function processMessage(msg, channel) {
       message: error.message,
       timestamp: Date.now(),
     });
+
+    // Business rule violations (balance > 0, not found) must not be requeued
+    const isBusinessError =
+      error.message.includes("cannot be deleted") ||
+      error.message.includes("not found") ||
+      error.message.includes("is required");
+
     console.error(
-      "[AccountEventsConsumer] DB error, requeuing:",
+      `[AccountEventsConsumer] ${isBusinessError ? "Business rule violation" : "DB error"}, ${isBusinessError ? "discarding" : "requeuing"}:`,
       error.message,
     );
-    channel.nack(msg, false, true);
+    channel.nack(msg, false, !isBusinessError);
   }
 }
 
