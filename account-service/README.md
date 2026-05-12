@@ -2,15 +2,15 @@
 
 > Part of the [GRPC App](../README.md) platform.
 
-The Account Service is a pure RabbitMQ consumer — it has no HTTP or gRPC port. Its only job is to listen for newly registered clients and assign them a unique `account_id` in the database.
+Hybrid service that exposes a gRPC interface (`ListAccounts`) and processes account lifecycle events from two RabbitMQ queues.
 
 ---
 
 ## Responsibilities
 
-- Consume the `client-registered` queue published by Auth Service after every `RegisterClient` call
-- Generate a UUID `account_id` and write it to the `clients.account_id` column in `auth_db`
-- Consume the `currency-set` queue (from `rmq-currency.js`) to handle currency assignment events
+- Expose `ListAccounts` over gRPC (reads from `accounts` table)
+- Consume the `client-registered` queue — assigns a UUID `account_id` to newly registered clients
+- Consume the `account-events` queue — handles `CREATE_ACCOUNT`, `DELETE_ACCOUNT`, and `UPDATE_ACCOUNT_STATUS` operations published by the API Gateway
 - Automatically reconnect to RabbitMQ on connection loss
 
 ---
@@ -26,13 +26,50 @@ Auth Service
             │
             ▼
     UPDATE clients SET account_id = $uuid WHERE id = $client_id
+
+API Gateway /api/accounts routes
+  └─► publishes to [account-events] queue
+            │
+            ▼
+     Account Service (consumer)
+            │
+            ▼
+    INSERT / UPDATE / DELETE accounts table
 ```
 
 ---
 
-## No gRPC / No HTTP Port
+## gRPC Port
 
-This service exposes no network interface. It is purely event-driven.
+| Context                 | Port    |
+| ----------------------- | ------- |
+| Internal Docker network | `50054` |
+| Health HTTP (host)      | `15054` |
+
+---
+
+## RPC Methods (`user.proto`)
+
+| Method         | Description                                              |
+| -------------- | -------------------------------------------------------- |
+| `ListAccounts` | Return accounts for a given client (or all if no filter) |
+
+---
+
+## RabbitMQ Queues
+
+| Queue               | Producer     | What triggers it                                       |
+| ------------------- | ------------ | ------------------------------------------------------ |
+| `client-registered` | Auth Service | `RegisterClient` RPC — assigns `account_id` UUID       |
+| `account-events`    | API Gateway  | `/api/accounts` routes — create, delete, status-update |
+
+### `account-events` message types
+
+| `type` field            | Action                                                            |
+| ----------------------- | ----------------------------------------------------------------- |
+| `CREATE_ACCOUNT`        | Inserts a new row in `accounts` for the given client and currency |
+| `DELETE_ACCOUNT`        | Removes the account row by `account_id`                           |
+| `UPDATE_ACCOUNT_STATUS` | Sets `status` to `ACTIVE` or `INACTIVE`                           |
 
 ---
 
@@ -40,28 +77,23 @@ This service exposes no network interface. It is purely event-driven.
 
 Shares `auth_db` with Auth Service and User Service.
 
-| Table | Operation |
-|---|---|
-| `clients` | `UPDATE ... SET account_id` |
-
----
-
-## RabbitMQ Queues
-
-| Queue | Producer | What triggers it |
-|---|---|---|
-| `client-registered` | Auth Service | `RegisterClient` RPC |
-| `currency-set` | Auth / User Service | Currency assignment events |
+| Table      | Operations                                                       |
+| ---------- | ---------------------------------------------------------------- |
+| `clients`  | `UPDATE ... SET account_id` (on `client-registered` events)      |
+| `accounts` | `INSERT`, `DELETE`, `UPDATE status` (on `account-events` events) |
 
 ---
 
 ## Environment Variables
 
-| Variable | Description | Default |
-|---|---|---|
-| `AUTH_DB_URL` | PostgreSQL connection string for `auth_db` | — |
-| `RABBITMQ_URL` | RabbitMQ connection string | `amqp://app:secret@rabbitmq:5672` |
-| `NODE_ENV` | Runtime environment | `development` |
+| Variable          | Description                                | Default                           |
+| ----------------- | ------------------------------------------ | --------------------------------- |
+| `PORT`            | gRPC listen port                           | `50054`                           |
+| `HEALTH_PORT`     | HTTP health port                           | `15054`                           |
+| `AUTH_DB_URL`     | PostgreSQL connection string for `auth_db` | —                                 |
+| `LOG_SERVICE_URL` | Log service gRPC address                   | `localhost:50052`                 |
+| `RABBITMQ_URL`    | RabbitMQ connection string                 | `amqp://app:secret@rabbitmq:5672` |
+| `NODE_ENV`        | Runtime environment                        | `development`                     |
 
 ---
 
@@ -81,4 +113,12 @@ With Docker Compose (recommended):
 docker compose up account-service
 ```
 
-This service starts automatically with the rest of the stack and requires no manual interaction.
+---
+
+## Health Check
+
+```
+GET http://localhost:15054/health
+```
+
+Returns `{ "status": "ok", "service": "account-service" }`.

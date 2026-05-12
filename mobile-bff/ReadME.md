@@ -26,15 +26,20 @@ The Mobile Backend-for-Frontend (BFF) is the HTTP server that sits between the F
 
 ## Routes
 
-| Method | Path                     | Description                                            |
-| ------ | ------------------------ | ------------------------------------------------------ |
-| POST   | `/api/auth/register`     | Register a new client → JWT                            |
-| POST   | `/api/auth/login`        | Login client + fetch recent activity → merged response |
-| GET    | `/api/logs`              | Query audit logs for the authenticated client          |
-| POST   | `/api/payments/transfer` | Send funds to another client by email                  |
-| GET    | `/api/payments/balance`  | Get client's current wallet balance                    |
-| GET    | `/api/payments/history`  | Get client's paginated transaction history             |
-| GET    | `/health`                | Health check                                           |
+| Method | Path                             | Description                                            |
+| ------ | -------------------------------- | ------------------------------------------------------ |
+| POST   | `/api/auth/register`             | Register a new client → JWT                            |
+| POST   | `/api/auth/login`                | Login client + fetch recent activity → merged response |
+| GET    | `/api/logs`                      | Query audit logs for the authenticated client          |
+| GET    | `/api/logs/payments`             | Query payment logs for the authenticated client        |
+| GET    | `/api/balance`                   | Get client's own balance (via UserService)             |
+| POST   | `/api/balance/add`               | Add an amount to the client's own balance              |
+| POST   | `/api/payments/transfer`         | Send funds to another client by email                  |
+| GET    | `/api/payments/balance`          | Get client's wallet balance (via PaymentService)       |
+| GET    | `/api/payments/history`          | Get client's paginated transaction history             |
+| GET    | `/api/accounts`                  | Get client's account(s)                                |
+| POST   | `/api/accounts/request-currency` | Request a new currency account                         |
+| GET    | `/health`                        | Health check                                           |
 
 ---
 
@@ -78,22 +83,6 @@ cp .env.example .env
 # Edit .env — set API_GATEWAY_URL
 npm start
 ```
-
-With Docker Compose (recommended):
-
-```bash
-docker compose up mobile-bff
-```
-
----
-
-## Health Check
-
-```
-GET http://localhost:3002/health
-```
-
-Returns `{ "status": "ok" }`.
 
 With Docker Compose (recommended):
 

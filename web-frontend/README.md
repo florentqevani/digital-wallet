@@ -40,13 +40,15 @@ The app uses a persistent sidebar (`AppShell`) with a collapse/expand toggle. Al
 | `/payments/topup`             | `TopUpPage`             | user         |
 | `/payments/balance`           | `BalancePage`           | user         |
 | `/payments/history`           | `HistoryPage`           | user         |
+| `/accounts`                   | `AccountsPage`          | superadmin   |
+| `/accounts/logs`              | `AccountLogsPage`       | superadmin   |
 | `*`                           | `NotFoundPage`          | —            |
 
 ### Page Descriptions
 
 | Component             | Description                                                                                  |
 | --------------------- | -------------------------------------------------------------------------------------------- |
-| `AdminDashboardPage`  | Summary statistics, daily-activity heatmap (28-day window), recent client and user log feeds |
+| `AdminDashboardPage`  | Summary statistics, daily-activity heatmap (14-day window), recent client and user log feeds |
 | `ClientLogsPage`      | Filterable audit log for mobile client actions (actor_type: `client`)                        |
 | `UserLogsPage`        | Filterable audit log for back-office operator actions (actor_type: `user` / `superadmin`)    |
 | `UserManagementPage`  | Redirects to the appropriate user sub-page based on role                                     |
@@ -56,6 +58,8 @@ The app uses a persistent sidebar (`AppShell`) with a collapse/expand toggle. Al
 | `TopUpPage`           | Admin-initiated client wallet top-up                                                         |
 | `BalancePage`         | Real-time balance lookup for a client                                                        |
 | `HistoryPage`         | Paginated full transaction ledger (all clients for superadmin, scoped for user)              |
+| `AccountsPage`        | View and manage client accounts (create, delete, update status)                              |
+| `AccountLogsPage`     | Audit log for account operations (CREATE_ACCOUNT, DELETE_ACCOUNT, UPDATE_ACCOUNT_STATUS)     |
 
 ---
 
@@ -105,39 +109,3 @@ npm run build
 ```
 
 Output goes to `dist/`. Serve with any static file host or Nginx. Ensure the production host can reach the Web BFF URL set in the build-time environment.
-
-## Tech Stack
-
-| Library         | Purpose                   |
-| --------------- | ------------------------- |
-| React 18        | UI framework              |
-| React Router v6 | Client-side routing       |
-| Vite 5          | Dev server and build tool |
-
----
-
-## Environment Variables
-
-| Variable           | Description      | Default                 |
-| ------------------ | ---------------- | ----------------------- |
-| `VITE_WEB_BFF_URL` | Web BFF base URL | `http://localhost:3104` |
-
----
-
-## Local Development
-
-```bash
-cd web-frontend
-npm install
-# Optional: set VITE_WEB_BFF_URL in .env if BFF runs on a different port
-npm run dev
-```
-
-Production build:
-
-```bash
-npm run build
-npm run preview
-```
-
-npm run build

@@ -27,27 +27,31 @@ The Web Backend-for-Frontend (BFF) is the HTTP server that sits between the Reac
 
 ## Routes
 
-| Method   | Path                              | Forwards to Gateway               |
-| -------- | --------------------------------- | --------------------------------- |
-| POST     | `/api/auth/login`                 | `/api/auth/login`                 |
-| POST     | `/api/auth/register-user`         | `/api/auth/register-user`         |
-| GET      | `/api/users`                      | `/api/users`                      |
-| PUT      | `/api/users/:id`                  | `/api/users/:id`                  |
-| DELETE   | `/api/users/:id`                  | `/api/users/:id`                  |
-| GET      | `/api/clients`                    | `/api/clients`                    |
-| PUT      | `/api/clients/:id`                | `/api/clients/:id`                |
-| DELETE   | `/api/clients/:id`                | `/api/clients/:id`                |
-| GET/POST | `/api/accounts`                   | `/api/accounts`                   |
-| GET      | `/api/logs/my-logs`               | `/api/logs/my-logs`               |
-| GET      | `/api/logs/dashboard`             | `/api/logs/dashboard`             |
-| GET      | `/api/logs/all`                   | `/api/logs/all`                   |
-| POST     | `/api/add-currency`               | `/api/add-currency`               |
-| POST     | `/api/set-balance`                | `/api/set-balance`                |
-| POST     | `/api/payments/topup`             | `/api/payments/topup`             |
-| POST     | `/api/payments/transfer-by-email` | `/api/payments/transfer-by-email` |
-| GET      | `/api/payments/balance`           | `/api/payments/balance`           |
-| GET      | `/api/payments/history`           | `/api/payments/history`           |
-| GET      | `/health`                         | Local response                    |
+| Method | Path                               | Forwards to Gateway                |
+| ------ | ---------------------------------- | ---------------------------------- |
+| POST   | `/api/auth/login`                  | `/api/auth/login`                  |
+| POST   | `/api/auth/register-user`          | `/api/auth/register-user`          |
+| GET    | `/api/users`                       | `/api/users`                       |
+| PUT    | `/api/users/:id`                   | `/api/users/:id`                   |
+| DELETE | `/api/users/:id`                   | `/api/users/:id`                   |
+| GET    | `/api/clients`                     | `/api/clients`                     |
+| PUT    | `/api/clients/:id`                 | `/api/clients/:id`                 |
+| DELETE | `/api/clients/:id`                 | `/api/clients/:id`                 |
+| GET    | `/api/accounts`                    | `/api/accounts`                    |
+| POST   | `/api/accounts`                    | `/api/accounts`                    |
+| DELETE | `/api/accounts/:account_id`        | `/api/accounts/:account_id`        |
+| PATCH  | `/api/accounts/:account_id/status` | `/api/accounts/:account_id/status` |
+| GET    | `/api/logs/my-logs`                | `/api/logs/my-logs`                |
+| GET    | `/api/logs/dashboard`              | `/api/logs/dashboard`              |
+| GET    | `/api/logs/all`                    | `/api/logs/all`                    |
+| GET    | `/api/logs/clients`                | `/api/logs/clients`                |
+| GET    | `/api/logs/payments`               | `/api/logs/payments`               |
+| GET    | `/api/logs/accounts`               | `/api/logs/accounts`               |
+| POST   | `/api/payments/topup`              | `/api/payments/topup`              |
+| POST   | `/api/payments/transfer`           | `/api/payments/transfer`           |
+| GET    | `/api/payments/balance`            | `/api/payments/balance`            |
+| GET    | `/api/payments/history`            | `/api/payments/history`            |
+| GET    | `/health`                          | Local response                     |
 
 ---
 

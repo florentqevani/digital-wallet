@@ -25,36 +25,37 @@ proto-contracts/
 
 ### `auth.proto` — AuthService
 
-| RPC | Request | Response |
-|---|---|---|
-| `RegisterClient` | `RegisterRequest` | `AuthResponse` |
-| `LoginClient` | `LoginRequest` | `AuthResponse` |
-| `LoginUser` | `LoginRequest` | `AuthResponse` |
-| `ValidateToken` | `ValidateRequest` | `ValidateResponse` |
-| `CreateToken` | `CreateTokenRequest` | `CreateTokenResponse` |
+| RPC              | Request              | Response              |
+| ---------------- | -------------------- | --------------------- |
+| `RegisterClient` | `RegisterRequest`    | `AuthResponse`        |
+| `LoginClient`    | `LoginRequest`       | `AuthResponse`        |
+| `LoginUser`      | `LoginRequest`       | `AuthResponse`        |
+| `ValidateToken`  | `ValidateRequest`    | `ValidateResponse`    |
+| `CreateToken`    | `CreateTokenRequest` | `CreateTokenResponse` |
 
 ### `user.proto` — UserService
 
-| RPC | Description |
-|---|---|
-| `ListUsers` / `RegisterUser` / `UpdateUser` / `DeleteUser` | Back-office user CRUD |
-| `ListClients` / `UpdateClient` / `DeleteClient` | Mobile client CRUD |
-| `SetCurrency` / `SetBalance` / `AddBalance` / `GetClientBalance` | Account & balance management |
+| RPC                                                                        | Description                      |
+| -------------------------------------------------------------------------- | -------------------------------- |
+| `ListUsers` / `RegisterUser` / `UpdateUser` / `DeleteUser`                 | Back-office user CRUD            |
+| `ListClients` / `UpdateClient` / `DeleteClient`                            | Mobile client CRUD               |
+| `SetCurrency` / `SetBalance` / `AddBalance` / `GetClientBalance`           | Account & balance management     |
+| `ListAccounts` / `CreateAccount` / `DeleteAccount` / `UpdateAccountStatus` | Multi-currency account lifecycle |
 
 ### `log.proto` — LogService
 
-| RPC | Description |
-|---|---|
-| `WriteLog` | Insert a single audit entry |
+| RPC         | Description                                                        |
+| ----------- | ------------------------------------------------------------------ |
+| `WriteLog`  | Insert a single audit entry                                        |
 | `QueryLogs` | Query entries with filters (actor, date range, action, pagination) |
 
 ### `payment.proto` — PaymentService
 
-| RPC | Description |
-|---|---|
-| `TransferFunds` | Atomic peer-to-peer transfer between two clients |
-| `AdminTopUp` | Credit a client's wallet (admin action) |
-| `GetBalance` | Return current wallet balance for a client |
+| RPC                     | Description                                                   |
+| ----------------------- | ------------------------------------------------------------- |
+| `TransferFunds`         | Atomic peer-to-peer transfer between two clients              |
+| `AdminTopUp`            | Credit a client's wallet (admin action)                       |
+| `GetBalance`            | Return current wallet balance for a client                    |
 | `GetTransactionHistory` | Paginated ledger; omit `client_id` to return all transactions |
 
 ---
@@ -76,12 +77,12 @@ Or via `package.json`:
 ## Using Proto Files in Node.js
 
 ```js
-const protoLoader = require('@grpc/proto-loader');
-const path = require('node:path');
+const protoLoader = require("@grpc/proto-loader");
+const path = require("node:path");
 
 const protoPath = path.join(
   __dirname,
-  '../node_modules/@myapp/proto-contracts/proto/auth.proto'
+  "../node_modules/@myapp/proto-contracts/proto/auth.proto",
 );
 
 const packageDefinition = protoLoader.loadSync(protoPath, {
@@ -112,6 +113,7 @@ npm install file:../proto-contracts
 ## Backward Compatibility Rules
 
 Proto3 rules:
+
 - ✅ Adding new optional fields — always OK
 - ✅ Removing fields you don't use — OK
 - ❌ Changing field numbers — breaks everything

@@ -38,19 +38,19 @@ GRPC_app/
 
 ## Services
 
-| Service           | Type         | Internal port | Role                                                                           |
-| ----------------- | ------------ | ------------- | ------------------------------------------------------------------------------ |
-| `auth-service`    | gRPC         | `50051`       | Issues and validates JWTs; authenticates clients and back-office users         |
-| `user-service`    | gRPC         | `50053`       | CRUD for back-office users and mobile clients; balance and currency management |
-| `payment-service` | gRPC         | `50055`       | Internal wallet: transfers, top-ups, transaction ledger                        |
-| `log-service`     | gRPC + RMQ   | `50052`       | Persists audit events via direct gRPC calls and RabbitMQ consumer              |
-| `account-service` | RMQ consumer | —             | Assigns account IDs to new clients after registration                          |
-| `api-gateway`     | HTTP         | `8080`        | Translates HTTP to gRPC; enforces auth, roles, and rate limiting               |
-| `web-bff`         | HTTP         | `3004`        | BFF for React; verifies JWTs and proxies to the Gateway                        |
-| `mobile-bff`      | HTTP         | `3002`        | BFF for Flutter; aggregates login response and proxies payments                |
-| `web-frontend`    | SPA          | `5173` dev    | React back-office UI                                                           |
-| `mobile_frontend` | Flutter      | —             | Mobile client app                                                              |
-| `proto-contracts` | npm package  | —             | Shared `.proto` files consumed by all Node gRPC services                       |
+| Service           | Type        | Internal port | Role                                                                          |
+| ----------------- | ----------- | ------------- | ----------------------------------------------------------------------------- |
+| `auth-service`    | gRPC        | `50051`       | Issues and validates JWTs; authenticates clients and back-office users        |
+| `user-service`    | gRPC        | `50053`       | CRUD for back-office users and mobile clients; balance and account management |
+| `payment-service` | gRPC        | `50055`       | Internal wallet: transfers, top-ups, transaction ledger                       |
+| `log-service`     | gRPC + RMQ  | `50052`       | Persists audit events via direct gRPC calls and RabbitMQ consumer             |
+| `account-service` | gRPC + RMQ  | `50054`       | Manages accounts; consumes `client-registered` and `account-events` queues    |
+| `api-gateway`     | HTTP        | `8080`        | Translates HTTP to gRPC; enforces auth, roles, and rate limiting              |
+| `web-bff`         | HTTP        | `3004`        | BFF for React; verifies JWTs and proxies to the Gateway                       |
+| `mobile-bff`      | HTTP        | `3002`        | BFF for Flutter; aggregates login response and proxies payments               |
+| `web-frontend`    | SPA         | `5173` dev    | React back-office UI                                                          |
+| `mobile_frontend` | Flutter     | —             | Mobile client app                                                             |
+| `proto-contracts` | npm package | —             | Shared `.proto` files consumed by all Node gRPC services                      |
 
 ---
 
@@ -93,7 +93,7 @@ Each service owns its data, has its own database access, and exposes a typed API
 
 **Log Service** — the audit store. Accepts direct gRPC `WriteLog` calls and concurrently consumes the `service-logs` RabbitMQ queue. Exposes `QueryLogs` with filter support (actor type, actor ID, date range, action, pagination) for dashboards and activity feeds. The `GET /api/logs/all` gateway endpoint merges parallel `user` and `superadmin` queries for superadmin callers to provide a unified view. Log entries carry one of three `actor_type` values: `client` (mobile users), `user` (back-office operators), or `superadmin`.
 
-**Account Service** — has no HTTP or gRPC port. It only consumes the `client-registered` queue. When Auth Service registers a new client, Account Service picks up the message and writes the client's `account_id` back to `auth_db.clients`.
+**Account Service** — now a hybrid service. It exposes a `ListAccounts` gRPC method (served on internal port `50054`) and runs two RabbitMQ consumers concurrently. The `client-registered` consumer assigns a UUID `account_id` to newly registered clients (writing to `auth_db.clients`). The `account-events` consumer handles account lifecycle operations published by the API Gateway: creating rows in the `accounts` table, deleting them, and toggling their status between `ACTIVE` and `INACTIVE`.
 
 ### The Messaging Layer
 
@@ -103,6 +103,7 @@ Two durable RabbitMQ queues:
 | ------------------- | ------------------- | --------------- | ------------------------------------------------- |
 | `service-logs`      | Auth, User, Payment | Log Service     | Decoupled, loss-free audit event delivery         |
 | `client-registered` | Auth Service        | Account Service | Triggers account ID assignment after registration |
+| `account-events`    | API Gateway         | Account Service | Account create / delete / status-update lifecycle |
 
 All services publish **fire-and-forget** — they do not wait for consumer acknowledgement before returning a response to the caller. If Log Service is temporarily down, events accumulate in RabbitMQ and are consumed when it recovers. Log Service reconnects automatically with a retry loop.
 
@@ -131,12 +132,12 @@ All gRPC services and the API Gateway share Protobuf definitions from `proto-con
 
 Contracts:
 
-| File            | Methods                                                                                                                                                 |
-| --------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `auth.proto`    | `RegisterClient`, `LoginClient`, `LoginUser`, `ValidateToken`, `CreateToken`                                                                            |
-| `user.proto`    | `ListUsers`, `RegisterUser`, `UpdateUser`, `DeleteUser`, `ListClients`, `UpdateClient`, `DeleteClient`, `SetCurrency`, `SetBalance`, `GetClientBalance` |
-| `payment.proto` | `TransferFunds`, `AdminTopUp`, `GetBalance`, `GetTransactionHistory`                                                                                    |
-| `log.proto`     | `WriteLog`, `QueryLogs`                                                                                                                                 |
+| File            | Methods                                                                                                                                                                                                                                        |
+| --------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `auth.proto`    | `RegisterClient`, `LoginClient`, `LoginUser`, `ValidateToken`, `CreateToken`                                                                                                                                                                   |
+| `user.proto`    | `ListUsers`, `RegisterUser`, `UpdateUser`, `DeleteUser`, `ListClients`, `UpdateClient`, `DeleteClient`, `SetCurrency`, `SetBalance`, `AddBalance`, `GetClientBalance`, `ListAccounts`, `CreateAccount`, `DeleteAccount`, `UpdateAccountStatus` |
+| `payment.proto` | `TransferFunds`, `AdminTopUp`, `GetBalance`, `GetTransactionHistory`                                                                                                                                                                           |
+| `log.proto`     | `WriteLog`, `QueryLogs`                                                                                                                                                                                                                        |
 
 When a `.proto` file changes, reinstall the package in every affected service before rebuilding its Docker image.
 
@@ -146,12 +147,12 @@ When a `.proto` file changes, reinstall the package in every affected service be
 
 One PostgreSQL container, two databases:
 
-| Database  | Used by                      | Tables                             |
-| --------- | ---------------------------- | ---------------------------------- |
-| `auth_db` | Auth, User, Account, Payment | `clients`, `users`, `transactions` |
-| `log_db`  | Log Service                  | `logs`                             |
+| Database  | Used by                      | Tables                                         |
+| --------- | ---------------------------- | ---------------------------------------------- |
+| `auth_db` | Auth, User, Account, Payment | `clients`, `users`, `transactions`, `accounts` |
+| `log_db`  | Log Service                  | `logs`                                         |
 
-`clients` has `balance` and `currency` columns that represent the current wallet state. `transactions` is the immutable ledger — every transfer and top-up is appended here. `logs` stores every audit event published by every service.
+`clients` has `balance` and `currency` columns that represent the current (legacy) wallet state. The newer `accounts` table supports multiple currencies per client — each row has `client_id`, `currency`, `balance`, and `status`. `transactions` is the immutable ledger — every transfer and top-up is appended here. `logs` stores every audit event published by every service.
 
 Schema initialisation:
 
@@ -162,14 +163,19 @@ Schema initialisation:
 
 ## Port Reference
 
-| Service       | Host port | Internal port | Protocol |
-| ------------- | --------- | ------------- | -------- |
-| API Gateway   | `18080`   | `8080`        | HTTP     |
-| Web BFF       | `3104`    | `3004`        | HTTP     |
-| Mobile BFF    | `3002`    | `3002`        | HTTP     |
-| PostgreSQL    | `5433`    | `5432`        | TCP      |
-| RabbitMQ AMQP | `5672`    | `5672`        | AMQP     |
-| RabbitMQ UI   | `15672`   | `15672`       | HTTP     |
+| Service                | Host port | Internal port | Protocol |
+| ---------------------- | --------- | ------------- | -------- |
+| API Gateway            | `18080`   | `8080`        | HTTP     |
+| Web BFF                | `3104`    | `3004`        | HTTP     |
+| Mobile BFF             | `3002`    | `3002`        | HTTP     |
+| PostgreSQL             | `5433`    | `5432`        | TCP      |
+| RabbitMQ AMQP          | `5672`    | `5672`        | AMQP     |
+| RabbitMQ UI            | `15672`   | `15672`       | HTTP     |
+| Auth Service health    | `15051`   | `15051`       | HTTP     |
+| Log Service health     | `15052`   | `15052`       | HTTP     |
+| User Service health    | `15053`   | `15053`       | HTTP     |
+| Account Service health | `15054`   | `15054`       | HTTP     |
+| Payment Service health | `15055`   | `15055`       | HTTP     |
 
 gRPC services have no host port mapping — they are only reachable inside the Docker network:
 
@@ -178,6 +184,7 @@ gRPC services have no host port mapping — they are only reachable inside the D
 | Auth Service    | `50051`            |
 | Log Service     | `50052`            |
 | User Service    | `50053`            |
+| Account Service | `50054`            |
 | Payment Service | `50055`            |
 
 ---

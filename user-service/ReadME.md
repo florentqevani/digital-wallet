@@ -53,6 +53,15 @@ gRPC microservice responsible for managing back-office users and mobile clients.
 | `AddBalance`       | Increment the balance (called after payment confirmation) |
 | `GetClientBalance` | Return current balance and currency                       |
 
+### Account Management
+
+| Method                | Description                                                 |
+| --------------------- | ----------------------------------------------------------- |
+| `ListAccounts`        | Return accounts for a client (or all accounts if no filter) |
+| `CreateAccount`       | Create a new account for a client with a given currency     |
+| `DeleteAccount`       | Remove an account by ID                                     |
+| `UpdateAccountStatus` | Set account `status` to `ACTIVE` or `INACTIVE`              |
+
 ---
 
 ## Actor Type Resolution
@@ -111,20 +120,6 @@ npm start
 ```
 
 With Docker Compose (recommended):
-
-```bash
-docker compose up user-service
-```
-
----
-
-## Health Check
-
-```
-GET http://localhost:15053/health
-```
-
-Returns `{ "status": "ok", "service": "user-service" }`.
 
 ```bash
 docker compose up user-service
