@@ -74,6 +74,7 @@ function StatusSelect({ value, accountId, onChange }) {
   );
 }
 
+function formatDate(ts) {
   if (!ts) return "—";
   const d = new Date(Number(ts));
   return Number.isNaN(d.getTime()) ? "—" : d.toLocaleString();
@@ -199,7 +200,6 @@ export default function AccountsPage() {
 
       <section className="content-grid single-column">
         <section className="panel compact-panel">
-
           {/* Header row */}
           <div className="section-heading-row">
             <div>
@@ -250,10 +250,22 @@ export default function AccountsPage() {
               {createError && <p className="error-text">{createError}</p>}
               <form
                 onSubmit={handleCreateAccount}
-                style={{ display: "flex", gap: "0.75rem", flexWrap: "wrap", alignItems: "flex-end" }}
+                style={{
+                  display: "flex",
+                  gap: "0.75rem",
+                  flexWrap: "wrap",
+                  alignItems: "flex-end",
+                }}
               >
                 <label style={{ flex: "1 1 220px" }}>
-                  <span style={{ fontSize: "0.78rem", color: "var(--ink-soft)", display: "block", marginBottom: "0.3rem" }}>
+                  <span
+                    style={{
+                      fontSize: "0.78rem",
+                      color: "var(--ink-soft)",
+                      display: "block",
+                      marginBottom: "0.3rem",
+                    }}
+                  >
                     Client
                   </span>
                   <select
@@ -265,13 +277,21 @@ export default function AccountsPage() {
                     <option value="">— Select client —</option>
                     {clients.map((c) => (
                       <option key={c.id} value={c.id}>
-                        {c.email}{c.name ? ` (${c.name})` : ""}
+                        {c.email}
+                        {c.name ? ` (${c.name})` : ""}
                       </option>
                     ))}
                   </select>
                 </label>
                 <label style={{ flex: "0 1 140px" }}>
-                  <span style={{ fontSize: "0.78rem", color: "var(--ink-soft)", display: "block", marginBottom: "0.3rem" }}>
+                  <span
+                    style={{
+                      fontSize: "0.78rem",
+                      color: "var(--ink-soft)",
+                      display: "block",
+                      marginBottom: "0.3rem",
+                    }}
+                  >
                     Currency
                   </span>
                   <select
@@ -280,10 +300,13 @@ export default function AccountsPage() {
                     style={{ width: "100%" }}
                   >
                     {["USD", "EUR", "GBP"].map((cur) => {
-                      const taken = clientAccounts.some((a) => a.currency === cur);
+                      const taken = clientAccounts.some(
+                        (a) => a.currency === cur,
+                      );
                       return (
                         <option key={cur} value={cur} disabled={taken}>
-                          {cur}{taken ? " (exists)" : ""}
+                          {cur}
+                          {taken ? " (exists)" : ""}
                         </option>
                       );
                     })}
@@ -292,7 +315,11 @@ export default function AccountsPage() {
                 <button
                   type="submit"
                   disabled={createLoading}
-                  style={{ alignSelf: "flex-end", padding: "0.45rem 1.1rem", fontSize: "0.85rem" }}
+                  style={{
+                    alignSelf: "flex-end",
+                    padding: "0.45rem 1.1rem",
+                    fontSize: "0.85rem",
+                  }}
                 >
                   {createLoading ? "Creating…" : "Create"}
                 </button>
@@ -302,7 +329,9 @@ export default function AccountsPage() {
 
           {/* Table */}
           {loading ? (
-            <p style={{ color: "var(--ink-soft)", padding: "1.5rem 0" }}>Loading accounts…</p>
+            <p style={{ color: "var(--ink-soft)", padding: "1.5rem 0" }}>
+              Loading accounts…
+            </p>
           ) : filtered.length === 0 ? (
             <div
               style={{
@@ -345,7 +374,8 @@ export default function AccountsPage() {
                           <span
                             style={{
                               fontWeight: 600,
-                              color: balance > 0 ? "var(--ink)" : "var(--ink-soft)",
+                              color:
+                                balance > 0 ? "var(--ink)" : "var(--ink-soft)",
                             }}
                           >
                             {balance.toFixed(2)}
@@ -358,7 +388,9 @@ export default function AccountsPage() {
                             onChange={handleStatusChange}
                           />
                         </td>
-                        <td data-label="Created At">{formatDate(acc.created_at)}</td>
+                        <td data-label="Created At">
+                          {formatDate(acc.created_at)}
+                        </td>
                         <td data-label="Actions">
                           <div className="row-actions">
                             <button
