@@ -1,0 +1,13 @@
+# docker-compose.override.yml
+# Exposes gRPC ports to localhost so Node.js services running under VS Code
+# debugger can reach the Docker-hosted supporting services.
+# This file is auto-merged by "docker compose up" — no extra flag needed.
+
+services:
+  log-service:
+    ports:
+      - "50052:50052"   # gRPC (needed by api-gateway & auth-service when run locally)
+
+  payment-service:
+    ports:
+      - "50055:50055"   # gRPC (needed by api-gateway when run locally)
