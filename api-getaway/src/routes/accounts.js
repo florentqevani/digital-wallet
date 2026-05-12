@@ -32,6 +32,32 @@ router.get(
   },
 );
 
+// POST /api/accounts/self — client creates their own account in a new currency
+router.post("/self", validateJWT(["client"]), async (req, res) => {
+  try {
+    const currency = (req.body.currency ?? req.body.requested_currency ?? "")
+      .toString()
+      .trim()
+      .toUpperCase();
+    if (!currency) {
+      return res
+        .status(400)
+        .json({ success: false, message: "currency is required" });
+    }
+    await publishAccountEvent({
+      type: "CREATE_ACCOUNT",
+      client_id: req.user.user_id,
+      currency,
+      requested_by: req.user.user_id,
+      requested_by_role: req.user.role,
+    });
+    res.status(202).json({ success: true, message: "Account creation queued" });
+  } catch (error) {
+    console.error("❌ Self create account error:", error.message);
+    return res.status(500).json({ success: false, message: error.message });
+  }
+});
+
 // POST /api/accounts
 router.post("/", validateJWT(["superadmin"]), async (req, res) => {
   try {

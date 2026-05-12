@@ -37,7 +37,7 @@ router.post("/request-currency", async (req, res) => {
   }
 
   try {
-    const response = await gatewayRequest("/api/accounts/request-currency", {
+    const response = await gatewayRequest("/api/accounts/self", {
       method: "POST",
       body: req.body,
       token,
