@@ -1,9 +1,16 @@
 import { useEffect, useState } from "react";
 import LogsTable from "../components/logs-table";
-import { getClientLogs } from "../lib/api";
+import { getAccountLogs } from "../lib/api";
 import { useAuth } from "../hooks/use-auth";
 
 const LIMIT = 50;
+
+const ACTION_OPTIONS = [
+  { value: "", label: "All Actions" },
+  { value: "CREATE_ACCOUNT", label: "Create Account" },
+  { value: "DELETE_ACCOUNT", label: "Delete Account" },
+  { value: "UPDATE_ACCOUNT_STATUS", label: "Update Status" },
+];
 
 function toDateTimeLocal(ts) {
   const d = new Date(ts);
@@ -11,12 +18,13 @@ function toDateTimeLocal(ts) {
   return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}`;
 }
 
-export default function ClientLogsPage() {
+export default function AccountLogsPage() {
   const { token } = useAuth();
   const [logs, setLogs] = useState([]);
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
-  const [actorId, setActorId] = useState("");
+  const [email, setEmail] = useState("");
+  const [action, setAction] = useState("");
   const [range, setRange] = useState("24h");
   const [customFrom, setCustomFrom] = useState(() =>
     toDateTimeLocal(new Date().setHours(0, 0, 0, 0)),
@@ -28,7 +36,8 @@ export default function ClientLogsPage() {
   const buildQuery = (targetPage = 1) => {
     const now = Date.now();
     const q = {
-      actor_id: actorId,
+      actor_email: email,
+      action,
       page: targetPage,
       limit: LIMIT,
     };
@@ -54,7 +63,7 @@ export default function ClientLogsPage() {
     setLoading(true);
     setError("");
     try {
-      const res = await getClientLogs(token, buildQuery(targetPage));
+      const res = await getAccountLogs(token, buildQuery(targetPage));
       setLogs(res.logs || []);
       setTotal(res.total || 0);
       setPage(targetPage);
@@ -74,9 +83,13 @@ export default function ClientLogsPage() {
   return (
     <>
       <section className="page-intro dashboard-intro">
-        <h2>Client Logs</h2>
-        <p>Audit trail for all client actions.</p>
+        <h2>Account Logs</h2>
+        <p>
+          Audit trail for all account operations (create, delete, status
+          changes).
+        </p>
       </section>
+
       <section className="content-grid single-column">
         <section className="panel compact-panel">
           <form
@@ -87,12 +100,25 @@ export default function ClientLogsPage() {
             }}
           >
             <label>
-              <span>Search by Email or Client ID</span>
+              <span>Performed By (Email)</span>
               <input
-                value={actorId}
-                onChange={(e) => setActorId(e.target.value)}
-                placeholder="client email or UUID"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="user email"
               />
+            </label>
+            <label>
+              <span>Action</span>
+              <select
+                value={action}
+                onChange={(e) => setAction(e.target.value)}
+              >
+                {ACTION_OPTIONS.map((o) => (
+                  <option key={o.value} value={o.value}>
+                    {o.label}
+                  </option>
+                ))}
+              </select>
             </label>
             <label>
               <span>Time Range</span>
@@ -124,31 +150,36 @@ export default function ClientLogsPage() {
                 </label>
               </>
             )}
-            <button type="submit" disabled={loading}>
-              {loading ? "Loading…" : "Apply"}
+            <button type="submit" className="btn-primary" disabled={loading}>
+              {loading ? "Loading..." : "Search"}
             </button>
           </form>
-          {error && <p className="error-text">{error}</p>}
-          <LogsTable title={`Client Activity — ${total} records`} logs={logs} />
-          <div className="pager">
-            <button
-              type="button"
-              onClick={() => load(page - 1)}
-              disabled={page <= 1 || loading}
-            >
-              ← Prev
-            </button>
-            <span>
-              Page {page} of {totalPages} — {total} total
-            </span>
-            <button
-              type="button"
-              onClick={() => load(page + 1)}
-              disabled={page >= totalPages || loading}
-            >
-              Next →
-            </button>
-          </div>
+
+          {error && <div className="alert alert-danger">{error}</div>}
+
+          <LogsTable logs={logs} title={`Account Logs (${total} total)`} flat />
+
+          {totalPages > 1 && (
+            <div className="pagination">
+              <button
+                className="btn-secondary btn-small"
+                disabled={page <= 1}
+                onClick={() => load(page - 1)}
+              >
+                ← Prev
+              </button>
+              <span>
+                Page {page} / {totalPages}
+              </span>
+              <button
+                className="btn-secondary btn-small"
+                disabled={page >= totalPages}
+                onClick={() => load(page + 1)}
+              >
+                Next →
+              </button>
+            </div>
+          )}
         </section>
       </section>
     </>

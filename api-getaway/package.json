@@ -18,6 +18,7 @@
         "@myapp/proto-contracts": "file:../proto-contracts",
         "@grpc/grpc-js": "^1.14.3",
         "@grpc/proto-loader": "^0.8.0",
+        "amqplib": "^0.10.9",
         "express": "^5.2.1",
         "express-rate-limit": "^8.3.2",
         "cors": "^2.8.6",

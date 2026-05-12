@@ -13,6 +13,8 @@ async function AdminTopUp(call, callback) {
     note = "",
   } = call.request;
 
+  const currencyCode = String(currency).trim().toUpperCase() || "ALL";
+
   if (!client_id) {
     return callback(null, { success: false, message: "client_id is required" });
   }
@@ -27,9 +29,9 @@ async function AdminTopUp(call, callback) {
   try {
     await client.query("BEGIN");
 
-    // Lock the client row
+    // Verify client exists
     const clientResult = await client.query(
-      "SELECT id, balance, email FROM clients WHERE id = $1 FOR UPDATE",
+      "SELECT id, email FROM clients WHERE id = $1 FOR UPDATE",
       [client_id],
     );
     if (clientResult.rows.length === 0) {
@@ -39,25 +41,40 @@ async function AdminTopUp(call, callback) {
 
     const clientEmail = clientResult.rows[0].email;
 
-    // Credit balance
-    const updated = await client.query(
-      "UPDATE clients SET balance = balance + $1 WHERE id = $2 RETURNING balance",
-      [amount, client_id],
+    // Upsert into accounts table (creates account for currency if it doesn't exist)
+    const accountResult = await client.query(
+      `INSERT INTO accounts (client_id, currency, balance, status, created_at, updated_at)
+       VALUES ($1, $2, $3, 'ACTIVE', NOW(), NOW())
+       ON CONFLICT (client_id, currency)
+       DO UPDATE SET balance = accounts.balance + $3, updated_at = NOW()
+       RETURNING balance`,
+      [client_id, currencyCode, amount],
     );
 
-    // Record transaction (from_client_id is NULL for admin top-ups)
+    const newAccountBalance = parseFloat(accountResult.rows[0].balance);
+
+    // For backward compat: also update legacy clients.balance for ALL currency
+    let newBalance = newAccountBalance;
+    if (currencyCode === "ALL") {
+      const legacyResult = await client.query(
+        "UPDATE clients SET balance = balance + $1 WHERE id = $2 RETURNING balance",
+        [amount, client_id],
+      );
+      newBalance = parseFloat(legacyResult.rows[0].balance);
+    }
+
+    // Record transaction
     const txResult = await client.query(
       `INSERT INTO transactions (from_client_id, to_client_id, amount, currency, type, status, note)
-             VALUES (NULL, $1, $2, $3, 'TOPUP', 'COMPLETED', $4)
-             RETURNING id`,
-      [client_id, amount, currency, note || "Admin top-up by System"],
+       VALUES (NULL, $1, $2, $3, 'TOPUP', 'COMPLETED', $4)
+       RETURNING id`,
+      [client_id, amount, currencyCode, note || "Admin top-up"],
     );
 
     await client.query("COMMIT");
 
-    const newBalance = parseFloat(updated.rows[0].balance);
     console.log(
-      `✓ Admin top-up ${amount} ${currency} → client ${clientEmail} (balance: ${newBalance})`,
+      `✓ Admin top-up ${amount} ${currencyCode} → client ${clientEmail} (account balance: ${newAccountBalance})`,
     );
 
     publishLog({
@@ -65,14 +82,15 @@ async function AdminTopUp(call, callback) {
       actor_type: actor_type,
       action: "TOPUP",
       status: "SUCCESS",
-      message: `Top-up of ${amount.toFixed(2)} ${currency} applied to ${clientEmail}. New balance: ${newBalance.toFixed(2)} ${currency}. Tx: ${txResult.rows[0].id}`,
+      message: `Top-up of ${amount.toFixed(2)} ${currencyCode} applied to ${clientEmail}. New balance: ${newAccountBalance.toFixed(2)} ${currencyCode}. Tx: ${txResult.rows[0].id}`,
     });
 
     callback(null, {
       success: true,
       transaction_id: txResult.rows[0].id,
-      new_balance: newBalance,
-      message: `Top-up of ${amount.toFixed(2)} ${currency} applied. New balance: ${newBalance.toFixed(2)}`,
+      new_balance: newAccountBalance,
+      currency: currencyCode,
+      message: `Top-up of ${amount.toFixed(2)} ${currencyCode} applied. New balance: ${newAccountBalance.toFixed(2)} ${currencyCode}`,
     });
   } catch (err) {
     await client.query("ROLLBACK");

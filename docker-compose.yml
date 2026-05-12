@@ -131,6 +131,7 @@ services:
       USER_SERVICE_URL: user-service:50053
       CLIENT_SERVICE_URL: client-service:50053
       PAYMENT_SERVICE_URL: payment-service:50055
+      RABBITMQ_URL: amqp://${RABBITMQ_USER}:${RABBITMQ_PASS}@rabbitmq:5672
       JWT_SECRET: ${JWT_SECRET}
       RATE_LIMIT_WINDOW_MS: 900000
       RATE_LIMIT_MAX_REQUESTS: 100

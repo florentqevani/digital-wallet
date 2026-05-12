@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useAuth } from "../hooks/use-auth";
-import { getClients, adminTopUp } from "../lib/api";
+import { getClients, listAccounts, adminTopUp } from "../lib/api";
 
 function formatAmount(n) {
   return Number(n).toLocaleString(undefined, {
@@ -12,9 +12,11 @@ function formatAmount(n) {
 export default function TopUpPage() {
   const { token } = useAuth();
   const [clients, setClients] = useState([]);
+  const [accounts, setAccounts] = useState([]);
   const [emailQuery, setEmailQuery] = useState("");
   const [selectedClient, setSelectedClient] = useState(null);
   const [amount, setAmount] = useState("");
+  const [currency, setCurrency] = useState("USD");
   const [note, setNote] = useState("");
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState(null);
@@ -24,6 +26,22 @@ export default function TopUpPage() {
       .then((res) => setClients(res.clients || []))
       .catch(() => {});
   }, [token]);
+
+  // Load accounts for selected client
+  useEffect(() => {
+    if (!selectedClient) {
+      setAccounts([]);
+      return;
+    }
+    listAccounts(token, selectedClient.id)
+      .then((res) => {
+        const accs = res.accounts || [];
+        setAccounts(accs);
+        // Auto-select first available currency the client actually has
+        if (accs.length > 0) setCurrency(accs[0].currency);
+      })
+      .catch(() => setAccounts([]));
+  }, [selectedClient, token]);
 
   const suggestions =
     emailQuery.length > 0 && !selectedClient
@@ -43,6 +61,7 @@ export default function TopUpPage() {
   const handleSelect = (client) => {
     setSelectedClient(client);
     setEmailQuery(client.email);
+    // currency will be auto-set by the accounts useEffect
   };
 
   const handleSubmit = async (e) => {
@@ -64,6 +83,7 @@ export default function TopUpPage() {
       const res = await adminTopUp(token, {
         client_id: selectedClient.id,
         amount: amt,
+        currency,
         note,
       });
       setResult(res);
@@ -72,6 +92,8 @@ export default function TopUpPage() {
         setNote("");
         setEmailQuery("");
         setSelectedClient(null);
+        setAccounts([]);
+        setCurrency("ALL");
       }
     } catch (err) {
       setResult({ success: false, message: err.message });
@@ -122,7 +144,30 @@ export default function TopUpPage() {
               )}
             </label>
             <label>
-              Amount (ALL)
+              Currency
+              <select
+                value={currency}
+                onChange={(e) => setCurrency(e.target.value)}
+                required
+                disabled={!selectedClient}
+              >
+                {["ALL", "USD", "EUR", "GBP"].map((cur) => {
+                  const alreadyHas = accounts.some((a) => a.currency === cur);
+                  return (
+                    <option
+                      key={cur}
+                      value={cur}
+                      disabled={selectedClient && !alreadyHas}
+                    >
+                      {cur}
+                      {selectedClient && !alreadyHas ? " (no account)" : ""}
+                    </option>
+                  );
+                })}
+              </select>
+            </label>
+            <label>
+              Amount
               <input
                 type="number"
                 min="0.01"
@@ -131,6 +176,7 @@ export default function TopUpPage() {
                 value={amount}
                 onChange={(e) => setAmount(e.target.value)}
                 required
+                disabled={!selectedClient}
               />
             </label>
             <label>
@@ -159,7 +205,7 @@ export default function TopUpPage() {
                 style={{ margin: 0 }}
               >
                 {result.success
-                  ? `✓ ${result.message} New balance: ${formatAmount(result.new_balance)} ALL`
+                  ? `✓ ${result.message} New balance: ${formatAmount(result.new_balance)} ${result.currency || currency}`
                   : `✗ ${result.message}`}
               </p>
             )}

@@ -9,6 +9,9 @@ service PaymentService {
   rpc CreateCreditRequest  (CreateCreditRequestRequest)  returns (CreateCreditRequestResponse);
   rpc GetCreditRequests    (GetCreditRequestsRequest)    returns (GetCreditRequestsResponse);
   rpc RespondCreditRequest (RespondCreditRequestRequest) returns (RespondCreditRequestResponse);
+  rpc RequestCurrency      (RequestCurrencyRequest)      returns (RequestCurrencyResponse);
+  rpc ListCurrencyRequests    (ListCurrencyRequestsRequest)    returns (ListCurrencyRequestsResponse);
+  rpc ReviewCurrencyRequest       (ReviewCurrencyRequestRequest)       returns (SimpleResponse);
 }
 
 // ── Transfer ─────────────────────────────────────────────────────────────────
@@ -141,4 +144,53 @@ message RespondCreditRequestResponse {
   bool   success        = 1;
   string transaction_id = 2;
   string message        = 3;
+}
+
+// ── Currency requests ─────────────────────────────────────────────────────────
+
+message CurrencyRequest {
+  string id          = 1;
+  string client_id   = 2;
+  string currency    = 3;
+  string status      = 4;
+  string reviewed_by   = 5;
+  int64  created_at = 6;
+  int64 reviewed_at = 7;
+  string reason      = 8;
+}
+
+message RequestCurrencyRequest {
+  string client_id = 1;
+  string requested_currency = 2;
+}
+
+message RequestCurrencyResponse {
+  bool   success = 1;
+  string request_id = 2;
+  string message = 3;
+}
+
+message ListCurrencyRequestsRequest {
+  string status = 1;
+  string client_id = 2;
+  string currency = 3;
+  int32 page = 4;
+  int32 limit = 5;
+}
+
+message ListCurrencyRequestsResponse {
+  repeated CurrencyRequest requests = 1;
+  int32 total = 2;
+}
+
+message ReviewCurrencyRequestRequest {
+  string request_id = 1;
+  bool   approve = 2;
+  string reason = 3;
+  string reviewed_by = 4;
+}
+
+message SimpleResponse {
+  bool success = 1;
+  string message = 2;
 }

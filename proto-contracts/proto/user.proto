@@ -13,6 +13,12 @@ service UserService {
   rpc SetBalance       (SetBalanceRequest)       returns (SimpleResponse);
   rpc AddBalance       (AddBalanceRequest)       returns (AddBalanceResponse);
   rpc GetClientBalance (GetClientBalanceRequest) returns (GetClientBalanceResponse);
+
+  //account management
+  rpc ListAccounts  (ListAccountsRequest)  returns (ListAccountsResponse);
+  rpc CreateAccount (CreateAccountRequest) returns (CreateAccountResponse);
+  rpc DeleteAccount (DeleteAccountRequest) returns (SimpleResponse);
+  rpc UpdateAccountStatus (UpdateAccountStatusRequest) returns (UpdateAccountStatusResponse);
 }
 
 message ListUsersRequest {}
@@ -116,3 +122,47 @@ message GetClientBalanceResponse {
   double balance  = 1;
   string currency = 2;
 }
+
+message Account {
+  string id        = 1;
+  string client_id = 2;
+  string currency   = 3;
+  double balance    = 4;
+  string status    = 5; // 'active' | 'suspended' 
+  int64  created_at = 6;
+  int64  updated_at = 7;
+}
+message ListAccountsRequest {
+  string client_id = 1;
+}
+
+message ListAccountsResponse {
+  repeated Account accounts = 1;
+  int32 total = 2;
+}
+
+message CreateAccountRequest {
+  string client_id = 1;
+  string currency  = 2;
+}
+
+message CreateAccountResponse {
+  bool success = 1;
+  string account_id = 2;
+  string message = 3;
+}
+
+message DeleteAccountRequest {
+  string account_id = 1;
+}
+
+message UpdateAccountStatusRequest {
+  string account_id = 1;
+  string status     = 2; // 'active' | 'suspended'
+}
+
+message UpdateAccountStatusResponse {
+  bool success = 1;
+  string message = 2;
+}
+

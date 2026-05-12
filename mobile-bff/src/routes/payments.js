@@ -19,16 +19,14 @@ router.post("/transfer", async (req, res) => {
   if (!token)
     return res.status(401).json({ success: false, message: "Unauthorised" });
 
-  const { to_email, note } = req.body;
+  const { to_email, note, currency } = req.body;
   const amount = parseFloat(req.body.amount);
 
   if (!to_email || typeof to_email !== "string" || !to_email.includes("@")) {
-    return res
-      .status(400)
-      .json({
-        success: false,
-        message: "to_email must be a valid email address",
-      });
+    return res.status(400).json({
+      success: false,
+      message: "to_email must be a valid email address",
+    });
   }
   if (isNaN(amount) || amount <= 0) {
     return res
@@ -39,7 +37,12 @@ router.post("/transfer", async (req, res) => {
   try {
     const response = await gatewayRequest("/api/payments/transfer-by-email", {
       method: "POST",
-      body: { to_email: to_email.trim(), amount, note: note || "" },
+      body: {
+        to_email: to_email.trim(),
+        amount,
+        note: note || "",
+        currency: currency || "ALL",
+      },
       token,
     });
     res.json(response);
@@ -89,14 +92,12 @@ router.get("/history", async (req, res) => {
     res.json(response);
   } catch (err) {
     console.error("[payments/history]", err.message);
-    res
-      .status(err.statusCode || 502)
-      .json({
-        success: false,
-        transactions: [],
-        total: 0,
-        message: err.message,
-      });
+    res.status(err.statusCode || 502).json({
+      success: false,
+      transactions: [],
+      total: 0,
+      message: err.message,
+    });
   }
 });
 
@@ -116,12 +117,10 @@ router.post("/credit-request", async (req, res) => {
     typeof payer_email !== "string" ||
     !payer_email.includes("@")
   ) {
-    return res
-      .status(400)
-      .json({
-        success: false,
-        message: "payer_email must be a valid email address",
-      });
+    return res.status(400).json({
+      success: false,
+      message: "payer_email must be a valid email address",
+    });
   }
   if (isNaN(amount) || amount <= 0) {
     return res
@@ -138,12 +137,10 @@ router.post("/credit-request", async (req, res) => {
     res.status(response.success ? 201 : 400).json(response);
   } catch (err) {
     console.error("[payments/credit-request]", err.message);
-    res
-      .status(err.statusCode || 502)
-      .json({
-        success: false,
-        message: err.message || "Could not create credit request",
-      });
+    res.status(err.statusCode || 502).json({
+      success: false,
+      message: err.message || "Could not create credit request",
+    });
   }
 });
 
@@ -203,12 +200,10 @@ router.post("/credit-request/:id/respond", async (req, res) => {
     res.status(response.success ? 200 : 400).json(response);
   } catch (err) {
     console.error("[payments/credit-request/respond]", err.message);
-    res
-      .status(err.statusCode || 502)
-      .json({
-        success: false,
-        message: err.message || "Could not respond to credit request",
-      });
+    res.status(err.statusCode || 502).json({
+      success: false,
+      message: err.message || "Could not respond to credit request",
+    });
   }
 });
 

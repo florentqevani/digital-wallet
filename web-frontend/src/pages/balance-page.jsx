@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useAuth } from "../hooks/use-auth";
-import { getClients, getPaymentBalance } from "../lib/api";
+import { getClients, getPaymentBalance, listAccounts } from "../lib/api";
 
 function formatAmount(n) {
   return Number(n).toLocaleString(undefined, {
@@ -15,6 +15,7 @@ export default function BalancePage() {
   const [emailQuery, setEmailQuery] = useState("");
   const [selectedClient, setSelectedClient] = useState(null);
   const [balanceInfo, setBalanceInfo] = useState(null);
+  const [accounts, setAccounts] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
@@ -37,6 +38,7 @@ export default function BalancePage() {
     setEmailQuery(e.target.value);
     setSelectedClient(null);
     setBalanceInfo(null);
+    setAccounts([]);
     setError("");
   };
 
@@ -52,12 +54,16 @@ export default function BalancePage() {
     setBalanceInfo(null);
     setLoading(true);
     try {
-      const res = await getPaymentBalance(token, selectedClient.id);
-      if (res.success) {
-        setBalanceInfo(res);
+      const [balRes, accRes] = await Promise.all([
+        getPaymentBalance(token, selectedClient.id),
+        listAccounts(token, selectedClient.id),
+      ]);
+      if (balRes.success) {
+        setBalanceInfo(balRes);
       } else {
-        setError(res.message || "Not found");
+        setError(balRes.message || "Not found");
       }
+      setAccounts(accRes.accounts || []);
     } catch (err) {
       setError(err.message);
     } finally {
@@ -161,6 +167,112 @@ export default function BalancePage() {
             )}
           </form>
         </section>
+
+        {/* ── Per-currency account cards ── */}
+        {accounts.length > 0 && (
+          <section className="panel compact-panel">
+            <span className="section-eyebrow">Currency Accounts</span>
+            <h3 style={{ marginBottom: "0.8rem" }}>
+              {selectedClient?.name || selectedClient?.email} — All Accounts
+            </h3>
+            <div style={{ display: "flex", flexWrap: "wrap", gap: "0.75rem" }}>
+              {accounts.map((acc) => {
+                const palette = {
+                  USD: {
+                    bg: "#e0f2fe",
+                    border: "#93c5fd",
+                    color: "#0369a1",
+                    label: "US Dollar",
+                  },
+                  EUR: {
+                    bg: "#ede9fe",
+                    border: "#c4b5fd",
+                    color: "#6d28d9",
+                    label: "Euro",
+                  },
+                  GBP: {
+                    bg: "#fef9c3",
+                    border: "#fde68a",
+                    color: "#92400e",
+                    label: "British Pound",
+                  },
+                  ALL: {
+                    bg: "#f1f5f9",
+                    border: "#cbd5e1",
+                    color: "#475569",
+                    label: "Legacy",
+                  },
+                };
+                const p = palette[acc.currency] || palette.ALL;
+                const isActive = (acc.status || "").toUpperCase() === "ACTIVE";
+                return (
+                  <div
+                    key={acc.id}
+                    style={{
+                      flex: "1 1 160px",
+                      maxWidth: "220px",
+                      padding: "0.85rem 1rem",
+                      borderRadius: "12px",
+                      background: p.bg,
+                      border: `1.5px solid ${p.border}`,
+                      opacity: isActive ? 1 : 0.55,
+                    }}
+                  >
+                    <div
+                      style={{
+                        display: "flex",
+                        justifyContent: "space-between",
+                        alignItems: "center",
+                        marginBottom: "0.4rem",
+                      }}
+                    >
+                      <span
+                        style={{
+                          fontWeight: 700,
+                          fontSize: "0.82rem",
+                          color: p.color,
+                          letterSpacing: "0.06em",
+                        }}
+                      >
+                        {acc.currency}
+                      </span>
+                      <span
+                        style={{
+                          fontSize: "0.68rem",
+                          fontWeight: 700,
+                          color: isActive ? "#0c7f55" : "#b91c1c",
+                          background: isActive ? "#e4f8ef" : "#fee2e2",
+                          padding: "0.15rem 0.45rem",
+                          borderRadius: "999px",
+                        }}
+                      >
+                        {isActive ? "ACTIVE" : acc.status}
+                      </span>
+                    </div>
+                    <div
+                      style={{
+                        fontSize: "0.72rem",
+                        color: p.color,
+                        marginBottom: "0.45rem",
+                      }}
+                    >
+                      {p.label}
+                    </div>
+                    <strong
+                      style={{
+                        fontFamily: "'JetBrains Mono', monospace",
+                        fontSize: "1.3rem",
+                        color: "#111",
+                      }}
+                    >
+                      {formatAmount(acc.balance || 0)}
+                    </strong>
+                  </div>
+                );
+              })}
+            </div>
+          </section>
+        )}
       </section>
     </>
   );

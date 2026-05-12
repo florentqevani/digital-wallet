@@ -23,6 +23,7 @@ class _HomePageState extends State<HomePage>
     with SingleTickerProviderStateMixin {
   final ScrollController _scrollController = ScrollController();
   late final TabController _tabController;
+  final PageController _balancePageController = PageController();
   bool _showSpinner = false;
   Timer? _spinnerTimer;
   String? _transferSuccess;
@@ -50,13 +51,32 @@ class _HomePageState extends State<HomePage>
   void dispose() {
     controller.removeListener(_onControllerUpdate);
     _tabController.dispose();
+    _balancePageController.dispose();
     _spinnerTimer?.cancel();
     _scrollController.dispose();
     super.dispose();
   }
 
   void _onControllerUpdate() {
-    if (mounted) setState(() {});
+    if (!mounted) {
+      return;
+    }
+    final selectedAccount = controller.selectedAccount;
+    final selectedIndex = selectedAccount == null
+        ? 0
+        : controller.accounts.indexWhere(
+            (account) => account.id == selectedAccount.id,
+          );
+    final targetPage = selectedIndex < 0 ? 0 : selectedIndex;
+
+    if (_balancePageController.hasClients) {
+      final currentPage = _balancePageController.page?.round() ?? 0;
+      if (currentPage != targetPage) {
+        _balancePageController.jumpToPage(targetPage);
+      }
+    }
+
+    setState(() {});
   }
 
   void _onScroll() {
@@ -78,10 +98,114 @@ class _HomePageState extends State<HomePage>
   Future<void> _refreshAll() async {
     await Future.wait([
       controller.fetchBalance(),
+      controller.fetchAccounts(),
       Future(() => _triggerFetch(refresh: true)),
       controller.fetchTransactionHistory(refresh: true),
       controller.fetchCreditRequests(),
     ]);
+  }
+
+  Future<void> _showCreateCurrencyAccountSheet() async {
+    final currencies = controller.availableCurrenciesToRequest;
+    if (currencies.isEmpty) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('You already have all supported currency accounts.'),
+          backgroundColor: AppColors.warning,
+        ),
+      );
+      return;
+    }
+
+    final selectedCurrency = await showModalBottomSheet<String>(
+      context: context,
+      useSafeArea: true,
+      isScrollControlled: true,
+      builder: (context) {
+        return SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                const SizedBox(height: 4),
+                Text(
+                  'Add currency account',
+                  style: Theme.of(context).textTheme.titleMedium,
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  'Choose the currency for your new account.',
+                  style: Theme.of(context).textTheme.bodySmall,
+                ),
+                const SizedBox(height: 16),
+                for (final currency in currencies)
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 10),
+                    child: InkWell(
+                      onTap: () => Navigator.of(context).pop(currency),
+                      borderRadius: BorderRadius.circular(12),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 14,
+                        ),
+                        decoration: BoxDecoration(
+                          color: AppColors.surfaceAlt,
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: AppColors.border),
+                        ),
+                        child: Row(
+                          children: [
+                            const Icon(
+                              Icons.account_balance_wallet_outlined,
+                              color: AppColors.primary,
+                              size: 20,
+                            ),
+                            const SizedBox(width: 12),
+                            Text(
+                              currency,
+                              style: const TextStyle(
+                                fontWeight: FontWeight.w700,
+                                fontSize: 15,
+                              ),
+                            ),
+                            const Spacer(),
+                            const Icon(
+                              Icons.chevron_right,
+                              color: AppColors.textMuted,
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+
+    if (selectedCurrency == null) {
+      return;
+    }
+
+    final error = await controller.requestCurrencyAccount(selectedCurrency);
+    if (!mounted) {
+      return;
+    }
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          error ?? '$selectedCurrency account created successfully.',
+        ),
+        backgroundColor: error == null ? AppColors.success : AppColors.danger,
+      ),
+    );
   }
 
   Future<void> _signOut() async {
@@ -90,6 +214,13 @@ class _HomePageState extends State<HomePage>
     Navigator.of(
       context,
     ).pushNamedAndRemoveUntil(LoginPage.routeName, (_) => false);
+  }
+
+  String _greeting() {
+    final hour = DateTime.now().hour;
+    if (hour < 12) return 'Good morning';
+    if (hour < 17) return 'Good afternoon';
+    return 'Good evening';
   }
 
   String _formatAction(String action) {
@@ -127,6 +258,7 @@ class _HomePageState extends State<HomePage>
         payerEmailCtrl: payerEmailCtrl,
         amountCtrl: amountCtrl,
         noteCtrl: noteCtrl,
+        currency: controller.currency,
         onSubmit: (payerEmail, amount, note) async {
           final err = await controller.createCreditRequest(
             payerEmail: payerEmail,
@@ -139,7 +271,7 @@ class _HomePageState extends State<HomePage>
             if (mounted) {
               setState(() {
                 _requestSuccess =
-                    'Request of ${NumberFormat('#,##0.00').format(amount)} ALL sent to $payerEmail';
+                    'Request of ${NumberFormat('#,##0.00').format(amount)} ${controller.currency} sent to $payerEmail';
               });
               Future.delayed(const Duration(seconds: 4), () {
                 if (mounted) setState(() => _requestSuccess = null);
@@ -158,7 +290,9 @@ class _HomePageState extends State<HomePage>
     });
   }
 
-  void _showSendMoneyDialog() {
+  void _showSendMoneyDialog({String? currency, double? balance}) {
+    final effectiveCurrency = currency ?? controller.currency;
+    final effectiveBalance = balance ?? controller.balance;
     final emailCtrl = TextEditingController();
     final amountCtrl = TextEditingController();
     final noteCtrl = TextEditingController();
@@ -166,8 +300,8 @@ class _HomePageState extends State<HomePage>
     showDialog<void>(
       context: context,
       builder: (ctx) => _SendMoneyDialog(
-        balance: controller.balance,
-        currency: controller.currency,
+        balance: effectiveBalance,
+        currency: effectiveCurrency,
         emailCtrl: emailCtrl,
         amountCtrl: amountCtrl,
         noteCtrl: noteCtrl,
@@ -175,6 +309,7 @@ class _HomePageState extends State<HomePage>
           final err = await controller.transferFunds(
             recipientEmail: toEmail,
             amount: amount,
+            currency: effectiveCurrency,
             note: note,
           );
           if (!ctx.mounted) return err;
@@ -183,7 +318,7 @@ class _HomePageState extends State<HomePage>
             if (mounted) {
               setState(() {
                 _transferSuccess =
-                    'Sent ${NumberFormat('#,##0.00').format(amount)} ALL to $toEmail';
+                    'Sent ${NumberFormat('#,##0.00').format(amount)} $effectiveCurrency to $toEmail';
               });
               Future.delayed(const Duration(seconds: 4), () {
                 if (mounted) setState(() => _transferSuccess = null);
@@ -204,22 +339,66 @@ class _HomePageState extends State<HomePage>
 
   @override
   Widget build(BuildContext context) {
+    final accounts = controller.accounts;
+    final balanceItems = accounts.isEmpty
+        ? [
+            _BalanceView(
+              id: 'primary',
+              balance: controller.balance,
+              currency: controller.currency,
+            ),
+          ]
+        : accounts
+              .map(
+                (account) => _BalanceView(
+                  id: account.id,
+                  balance: account.balance,
+                  currency: account.currency,
+                ),
+              )
+              .toList(growable: false);
+    final selectedAccount = controller.selectedAccount;
+    final selectedIndex = selectedAccount == null
+        ? 0
+        : balanceItems.indexWhere((item) => item.id == selectedAccount.id);
+    final activeBalanceIndex = selectedIndex < 0 ? 0 : selectedIndex;
+
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Mobile Dashboard'),
+        title: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              _greeting(),
+              style: const TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w400,
+                color: AppColors.textMuted,
+              ),
+            ),
+            Text(
+              controller.name.split(' ').first,
+              style: const TextStyle(
+                fontSize: 17,
+                fontWeight: FontWeight.w700,
+                color: AppColors.textPrimary,
+              ),
+            ),
+          ],
+        ),
         actions: [
+          IconButton(
+            tooltip: 'Refresh',
+            onPressed: _refreshAll,
+            icon: const Icon(Icons.refresh_rounded),
+          ),
           IconButton(
             tooltip: 'Sign out',
             onPressed: _signOut,
-            icon: const Icon(Icons.logout),
+            icon: const Icon(Icons.logout_rounded),
           ),
         ],
-      ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: _showSendMoneyDialog,
-        icon: const Icon(Icons.send),
-        label: const Text('Send Money'),
-        backgroundColor: AppColors.primary,
       ),
       body: SafeArea(
         child: RefreshIndicator(
@@ -230,26 +409,90 @@ class _HomePageState extends State<HomePage>
               height:
                   MediaQuery.of(context).size.height -
                   MediaQuery.of(context).padding.top -
+                  MediaQuery.of(context).padding.bottom -
                   kToolbarHeight,
               child: Padding(
                 padding: const EdgeInsets.all(16),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    BalanceCard(
-                      name: controller.name,
-                      balance: controller.balance,
-                      currency: controller.currency,
-                      onSend: _showSendMoneyDialog,
-                      successMessage: _transferSuccess,
+                    SizedBox(
+                      height: 220,
+                      child: PageView.builder(
+                        controller: _balancePageController,
+                        itemCount: balanceItems.length,
+                        onPageChanged: (index) {
+                          final item = balanceItems[index];
+                          if (item.id != 'primary') {
+                            controller.selectAccount(item.id);
+                          }
+                        },
+                        itemBuilder: (context, index) {
+                          final item = balanceItems[index];
+                          return Padding(
+                            padding: const EdgeInsets.only(right: 4),
+                            child: BalanceCard(
+                              name: controller.name,
+                              balance: item.balance,
+                              currency: item.currency,
+                              onSend: () => _showSendMoneyDialog(
+                                currency: item.currency,
+                                balance: item.balance,
+                              ),
+                              onAddCurrencyAccount:
+                                  _showCreateCurrencyAccountSheet,
+                              swipeHint: balanceItems.length > 1
+                                  ? 'Swipe to switch between your currency balances.'
+                                  : null,
+                              successMessage: index == activeBalanceIndex
+                                  ? _transferSuccess
+                                  : null,
+                            ),
+                          );
+                        },
+                      ),
                     ),
+                    if (balanceItems.length > 1)
+                      Padding(
+                        padding: const EdgeInsets.only(top: 8),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: List.generate(balanceItems.length, (index) {
+                            final isActive = index == activeBalanceIndex;
+                            return AnimatedContainer(
+                              duration: const Duration(milliseconds: 180),
+                              margin: const EdgeInsets.symmetric(horizontal: 4),
+                              width: isActive ? 18 : 8,
+                              height: 8,
+                              decoration: BoxDecoration(
+                                color: isActive
+                                    ? AppColors.primary
+                                    : AppColors.primary.withValues(alpha: 0.25),
+                                borderRadius: BorderRadius.circular(999),
+                              ),
+                            );
+                          }),
+                        ),
+                      ),
                     const SizedBox(height: 14),
                     TabBar(
                       controller: _tabController,
                       tabs: const [
-                        Tab(text: 'Activity'),
-                        Tab(text: 'Transactions'),
-                        Tab(text: 'Requests'),
+                        Tab(
+                          icon: Icon(Icons.bolt_outlined, size: 16),
+                          text: 'Activity',
+                          iconMargin: EdgeInsets.only(bottom: 2),
+                        ),
+                        Tab(
+                          icon: Icon(Icons.swap_horiz_rounded, size: 16),
+                          text: 'Transactions',
+                          iconMargin: EdgeInsets.only(bottom: 2),
+                        ),
+                        Tab(
+                          icon: Icon(Icons.request_page_outlined, size: 16),
+                          text: 'Requests',
+                          iconMargin: EdgeInsets.only(bottom: 2),
+                        ),
                       ],
                     ),
                     const SizedBox(height: 8),
@@ -282,6 +525,18 @@ class _HomePageState extends State<HomePage>
       ),
     );
   }
+}
+
+class _BalanceView {
+  const _BalanceView({
+    required this.id,
+    required this.balance,
+    required this.currency,
+  });
+
+  final String id;
+  final double balance;
+  final String currency;
 }
 
 // ── Activity tab ─────────────────────────────────────────────────────────────
@@ -343,11 +598,11 @@ class _TransactionsTab extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    if (controller.isTxBusy) {
+    final txList = controller.transactions;
+
+    if (txList.isEmpty && controller.isTxBusy) {
       return const Center(child: CircularProgressIndicator());
     }
-
-    final txList = controller.transactions;
 
     if (txList.isEmpty) {
       return RefreshIndicator(
@@ -465,8 +720,8 @@ class _SendMoneyDialogState extends State<_SendMoneyDialog> {
               keyboardType: const TextInputType.numberWithOptions(
                 decimal: true,
               ),
-              decoration: const InputDecoration(
-                labelText: 'Amount (ALL)',
+              decoration: InputDecoration(
+                labelText: 'Amount (${widget.currency})',
                 hintText: '0.00',
               ),
             ),
@@ -539,7 +794,7 @@ class _RequestsTab extends StatelessWidget {
       onRefresh: controller.fetchCreditRequests,
       child: ListView(
         physics: const AlwaysScrollableScrollPhysics(),
-        padding: const EdgeInsets.only(bottom: 80),
+        padding: const EdgeInsets.only(bottom: 24),
         children: [
           if (successMessage != null)
             Container(
@@ -576,10 +831,10 @@ class _RequestsTab extends StatelessWidget {
           const SizedBox(height: 6),
           if (incoming.isEmpty)
             const Padding(
-              padding: EdgeInsets.symmetric(vertical: 12),
-              child: Text(
-                'No pending incoming requests.',
-                style: TextStyle(color: Colors.grey),
+              padding: EdgeInsets.symmetric(vertical: 8),
+              child: EmptyState(
+                message: 'No pending incoming requests.',
+                icon: Icons.inbox_outlined,
               ),
             )
           else
@@ -604,10 +859,10 @@ class _RequestsTab extends StatelessWidget {
           const SizedBox(height: 6),
           if (outgoing.isEmpty)
             const Padding(
-              padding: EdgeInsets.symmetric(vertical: 12),
-              child: Text(
-                'No pending outgoing requests.',
-                style: TextStyle(color: Colors.grey),
+              padding: EdgeInsets.symmetric(vertical: 8),
+              child: EmptyState(
+                message: 'No pending outgoing requests.',
+                icon: Icons.outbox_outlined,
               ),
             )
           else
@@ -647,8 +902,8 @@ class _RequestTile extends StatefulWidget {
 
   final CreditRequest request;
   final bool isIncoming;
-  final VoidCallback? onAccept;
-  final VoidCallback? onReject;
+  final Future<void> Function()? onAccept;
+  final Future<void> Function()? onReject;
 
   @override
   State<_RequestTile> createState() => _RequestTileState();
@@ -657,10 +912,14 @@ class _RequestTile extends StatefulWidget {
 class _RequestTileState extends State<_RequestTile> {
   bool _busy = false;
 
-  Future<void> _handle(VoidCallback cb) async {
+  Future<void> _handle(Future<void> Function() cb) async {
+    if (_busy) return;
     setState(() => _busy = true);
-    cb();
-    // The controller will notifyListeners and rebuild, no need to reset
+    try {
+      await cb();
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
   }
 
   @override
@@ -705,7 +964,10 @@ class _RequestTileState extends State<_RequestTile> {
               const SizedBox(height: 4),
               Text(
                 req.note,
-                style: const TextStyle(fontSize: 12, color: Colors.grey),
+                style: const TextStyle(
+                  fontSize: 12,
+                  color: AppColors.textMuted,
+                ),
               ),
             ],
             if (widget.isIncoming) ...[
@@ -755,11 +1017,13 @@ class _RequestMoneyDialog extends StatefulWidget {
     required this.amountCtrl,
     required this.noteCtrl,
     required this.onSubmit,
+    required this.currency,
   });
 
   final TextEditingController payerEmailCtrl;
   final TextEditingController amountCtrl;
   final TextEditingController noteCtrl;
+  final String currency;
   final Future<String?> Function(String email, double amount, String note)
   onSubmit;
 
@@ -809,7 +1073,7 @@ class _RequestMoneyDialogState extends State<_RequestMoneyDialog> {
           children: [
             const Text(
               'Ask someone to send you money.',
-              style: TextStyle(fontSize: 13, color: Colors.grey),
+              style: TextStyle(fontSize: 13, color: AppColors.textMuted),
             ),
             const SizedBox(height: 16),
             TextField(
@@ -828,8 +1092,8 @@ class _RequestMoneyDialogState extends State<_RequestMoneyDialog> {
               keyboardType: const TextInputType.numberWithOptions(
                 decimal: true,
               ),
-              decoration: const InputDecoration(
-                labelText: 'Amount (ALL)',
+              decoration: InputDecoration(
+                labelText: 'Amount (${widget.currency})',
                 hintText: '0.00',
               ),
             ),

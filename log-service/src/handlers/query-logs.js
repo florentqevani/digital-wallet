@@ -19,10 +19,43 @@ async function queryLogs(call, callback) {
       conditions.push("actor_type = $" + (params.length + 1));
       params.push(actor_type);
     }
+
+    // Handle actor_id: resolve email to UUID if needed
+    let resolvedActorId = actor_id;
     if (actor_id && actor_id !== "") {
+      // Check if actor_id is an email
+      if (actor_id.includes("@")) {
+        try {
+          // Try to resolve as client email
+          if (actor_type === "client" || !actor_type) {
+            const clientRes = await pool.query(
+              "SELECT id FROM clients WHERE email = $1 LIMIT 1",
+              [actor_id],
+            );
+            if (clientRes.rows.length > 0) {
+              resolvedActorId = clientRes.rows[0].id;
+            }
+          }
+          // Try to resolve as user email
+          if (!resolvedActorId || resolvedActorId === actor_id) {
+            const userRes = await pool.query(
+              "SELECT id FROM users WHERE email = $1 LIMIT 1",
+              [actor_id],
+            );
+            if (userRes.rows.length > 0) {
+              resolvedActorId = userRes.rows[0].id;
+            }
+          }
+        } catch (e) {
+          console.warn(`Could not resolve email ${actor_id}:`, e.message);
+          // Fall back to original actor_id in case of DB error
+        }
+      }
+
       conditions.push("actor_id = $" + (params.length + 1));
-      params.push(actor_id);
+      params.push(resolvedActorId);
     }
+
     if (action && action !== "") {
       if (action.includes("%")) {
         conditions.push("action LIKE $" + (params.length + 1));

@@ -6,7 +6,7 @@ async function CreateCreditRequest(call, callback) {
     requester_id,
     payer_email,
     amount,
-    currency = "ALL",
+    currency,
     note = "",
   } = call.request;
 
@@ -27,6 +27,13 @@ async function CreateCreditRequest(call, callback) {
       success: false,
       request_id: "",
       message: "amount must be greater than zero",
+    });
+
+  if (!currency)
+    return callback(null, {
+      success: false,
+      request_id: "",
+      message: "currency is required",
     });
 
   const client = await pool.connect();

@@ -8,8 +8,8 @@ const config = require("./config");
 const { ListAccounts } = require("./handlers/listAccounts");
 const { startConsumer } = require("./rabbitmq/rmq-consumer");
 const {
-  startConsumer: startCurrencyConsumer,
-} = require("./rabbitmq/rmq-currency");
+  startConsumer: startAccountEventsConsumer,
+} = require("./rabbitmq/account-events-consumer");
 
 // Load proto definition
 const protoPath = path.join(
@@ -51,8 +51,8 @@ server.bindAsync(
     startConsumer().catch((err) =>
       console.error("Consumer error:", err.message),
     );
-    startCurrencyConsumer().catch((err) =>
-      console.error("Currency consumer error:", err.message),
+    startAccountEventsConsumer().catch((err) =>
+      console.error("Account events consumer error:", err.message),
     );
   },
 );

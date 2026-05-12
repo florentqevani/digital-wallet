@@ -31,7 +31,33 @@ function TxTypePill({ type }) {
   );
 }
 
+function CurrencyBadge({ currency }) {
+  const palette = {
+    USD: { bg: "#e0f2fe", color: "#0369a1" },
+    EUR: { bg: "#ede9fe", color: "#6d28d9" },
+    GBP: { bg: "#fef9c3", color: "#92400e" },
+    ALL: { bg: "#f1f5f9", color: "#475569" },
+  };
+  const c = palette[currency] || palette.ALL;
+  return (
+    <span
+      style={{
+        display: "inline-block",
+        padding: "0.18rem 0.52rem",
+        borderRadius: "6px",
+        fontSize: "0.72rem",
+        fontWeight: 700,
+        background: c.bg,
+        color: c.color,
+      }}
+    >
+      {currency || "ALL"}
+    </span>
+  );
+}
+
 const PAGE_SIZE = 20;
+const CURRENCIES = ["ALL", "USD", "EUR", "GBP"];
 
 export default function HistoryPage() {
   const { token } = useAuth();
@@ -42,10 +68,17 @@ export default function HistoryPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
+  // ── Filter state ──────────────────────────────────────────────
+  const [filterType, setFilterType] = useState("");
+  const [filterCurrency, setFilterCurrency] = useState("");
+  const [filterEmail, setFilterEmail] = useState("");
+  const [filterDateFrom, setFilterDateFrom] = useState("");
+  const [filterDateTo, setFilterDateTo] = useState("");
+
   const clientMap = useMemo(() => {
     const m = {};
     clients.forEach((c) => {
-      m[c.id] = c.name || c.email;
+      m[c.id] = { name: c.name, email: c.email };
     });
     return m;
   }, [clients]);
@@ -81,6 +114,70 @@ export default function HistoryPage() {
 
   const totalPages = Math.ceil(total / PAGE_SIZE);
 
+  // ── Client-side filtering ─────────────────────────────────────
+  const filtered = useMemo(() => {
+    const dateFrom = filterDateFrom ? new Date(filterDateFrom).getTime() : null;
+    const dateTo = filterDateTo
+      ? new Date(filterDateTo + "T23:59:59").getTime()
+      : null;
+    const emailLower = filterEmail.trim().toLowerCase();
+
+    return transactions.filter((tx) => {
+      if (filterType && tx.type !== filterType) return false;
+      if (filterCurrency && tx.currency !== filterCurrency) return false;
+      if (dateFrom && Number(tx.created_at) < dateFrom) return false;
+      if (dateTo && Number(tx.created_at) > dateTo) return false;
+      if (emailLower) {
+        const fromEmail =
+          clientMap[tx.from_client_id]?.email?.toLowerCase() || "";
+        const toEmail = clientMap[tx.to_client_id]?.email?.toLowerCase() || "";
+        if (!fromEmail.includes(emailLower) && !toEmail.includes(emailLower))
+          return false;
+      }
+      return true;
+    });
+  }, [
+    transactions,
+    filterType,
+    filterCurrency,
+    filterEmail,
+    filterDateFrom,
+    filterDateTo,
+    clientMap,
+  ]);
+
+  const hasFilters =
+    filterType ||
+    filterCurrency ||
+    filterEmail ||
+    filterDateFrom ||
+    filterDateTo;
+  const clearFilters = () => {
+    setFilterType("");
+    setFilterCurrency("");
+    setFilterEmail("");
+    setFilterDateFrom("");
+    setFilterDateTo("");
+  };
+
+  const inputStyle = {
+    padding: "0.45rem 0.6rem",
+    borderRadius: "8px",
+    border: "1px solid var(--line-strong)",
+    fontSize: "0.85rem",
+    background: "var(--bg)",
+    color: "var(--ink)",
+    width: "100%",
+  };
+  const labelStyle = {
+    display: "flex",
+    flexDirection: "column",
+    gap: "0.3rem",
+    fontSize: "0.78rem",
+    fontWeight: 600,
+    color: "var(--ink-soft)",
+  };
+
   return (
     <>
       <section className="page-intro dashboard-intro">
@@ -88,31 +185,129 @@ export default function HistoryPage() {
         <p>Full history of wallet transfers and admin top-ups.</p>
       </section>
       <section className="content-grid single-column">
-        <section className="panel compact-panel">
-          <span className="section-eyebrow">Ledger</span>
-          <h3>All Transactions</h3>
+        {/* ── Filter bar ── */}
+        <section
+          className="panel compact-panel"
+          style={{ padding: "1rem 1.25rem" }}
+        >
           <div
             style={{
               display: "flex",
-              gap: "0.6rem",
-              alignItems: "center",
-              marginBottom: "0.8rem",
+              flexWrap: "wrap",
+              gap: "0.75rem",
+              alignItems: "flex-end",
             }}
           >
-            <button
-              type="button"
-              className="button-muted"
-              onClick={() => load(page)}
-              disabled={loading}
+            <label style={{ ...labelStyle, minWidth: "130px" }}>
+              Type
+              <select
+                value={filterType}
+                onChange={(e) => setFilterType(e.target.value)}
+                style={inputStyle}
+              >
+                <option value="">All Types</option>
+                <option value="TOPUP">TOPUP</option>
+                <option value="TRANSFER">TRANSFER</option>
+              </select>
+            </label>
+
+            <label style={{ ...labelStyle, minWidth: "130px" }}>
+              Currency
+              <select
+                value={filterCurrency}
+                onChange={(e) => setFilterCurrency(e.target.value)}
+                style={inputStyle}
+              >
+                <option value="">All Currencies</option>
+                {CURRENCIES.map((c) => (
+                  <option key={c} value={c}>
+                    {c}
+                  </option>
+                ))}
+              </select>
+            </label>
+
+            <label style={{ ...labelStyle, flex: 1, minWidth: "180px" }}>
+              Client email
+              <input
+                type="text"
+                placeholder="Search by email…"
+                value={filterEmail}
+                onChange={(e) => setFilterEmail(e.target.value)}
+                style={inputStyle}
+              />
+            </label>
+
+            <label style={{ ...labelStyle, minWidth: "145px" }}>
+              From date
+              <input
+                type="date"
+                value={filterDateFrom}
+                onChange={(e) => setFilterDateFrom(e.target.value)}
+                style={inputStyle}
+              />
+            </label>
+
+            <label style={{ ...labelStyle, minWidth: "145px" }}>
+              To date
+              <input
+                type="date"
+                value={filterDateTo}
+                onChange={(e) => setFilterDateTo(e.target.value)}
+                style={inputStyle}
+              />
+            </label>
+
+            <div
+              style={{ display: "flex", gap: "0.5rem", alignItems: "flex-end" }}
             >
-              ↻ Refresh
-            </button>
-            {!loading && (
-              <span style={{ fontSize: "0.8rem", color: "var(--ink-soft)" }}>
-                {total} record{total !== 1 ? "s" : ""}
+              <button
+                type="button"
+                className="button-muted"
+                onClick={() => load(page)}
+                disabled={loading}
+                style={{ whiteSpace: "nowrap" }}
+              >
+                ↻ Refresh
+              </button>
+              {hasFilters && (
+                <button
+                  type="button"
+                  className="button-muted"
+                  onClick={clearFilters}
+                  style={{ whiteSpace: "nowrap", color: "var(--danger)" }}
+                >
+                  ✕ Clear
+                </button>
+              )}
+            </div>
+          </div>
+          <div
+            style={{
+              display: "flex",
+              gap: "1.2rem",
+              marginTop: "0.6rem",
+              fontSize: "0.79rem",
+              color: "var(--ink-soft)",
+            }}
+          >
+            <span>
+              <strong style={{ color: "var(--ink)" }}>{total}</strong> total
+              record{total !== 1 ? "s" : ""}
+            </span>
+            {hasFilters && (
+              <span>
+                <strong style={{ color: "var(--accent)" }}>
+                  {filtered.length}
+                </strong>{" "}
+                match{filtered.length !== 1 ? "es" : ""}
               </span>
             )}
           </div>
+        </section>
+
+        {/* ── Table ── */}
+        <section className="panel compact-panel">
           {error && <p className="error-text">{error}</p>}
           <div className="table-wrapper">
             <table>
@@ -122,6 +317,7 @@ export default function HistoryPage() {
                   <th>From</th>
                   <th>To</th>
                   <th>Amount</th>
+                  <th>Currency</th>
                   <th>Note</th>
                   <th>Status</th>
                   <th>Date</th>
@@ -132,23 +328,29 @@ export default function HistoryPage() {
                 {loading ? (
                   <tr>
                     <td
-                      colSpan={8}
+                      colSpan={9}
                       style={{ textAlign: "center", padding: "2rem" }}
                     >
                       Loading…
                     </td>
                   </tr>
-                ) : transactions.length === 0 ? (
+                ) : filtered.length === 0 ? (
                   <tr>
                     <td
-                      colSpan={8}
-                      style={{ textAlign: "center", padding: "2rem" }}
+                      colSpan={9}
+                      style={{
+                        textAlign: "center",
+                        padding: "2rem",
+                        color: "var(--ink-soft)",
+                      }}
                     >
-                      No transactions found.
+                      {hasFilters
+                        ? "No transactions match your filters."
+                        : "No transactions found."}
                     </td>
                   </tr>
                 ) : (
-                  transactions.map((tx) => (
+                  filtered.map((tx) => (
                     <tr key={tx.id}>
                       <td>
                         <TxTypePill type={tx.type} />
@@ -169,14 +371,14 @@ export default function HistoryPage() {
                           </span>
                         ) : (
                           <span title={tx.from_client_id}>
-                            {clientMap[tx.from_client_id] ||
+                            {clientMap[tx.from_client_id]?.email ||
                               tx.from_client_id?.slice(0, 8) + "…"}
                           </span>
                         )}
                       </td>
                       <td style={{ fontWeight: 600 }}>
                         <span title={tx.to_client_id}>
-                          {clientMap[tx.to_client_id] ||
+                          {clientMap[tx.to_client_id]?.email ||
                             tx.to_client_id?.slice(0, 8) + "…"}
                         </span>
                       </td>
@@ -189,15 +391,9 @@ export default function HistoryPage() {
                         >
                           {formatAmount(tx.amount)}
                         </span>
-                        <span
-                          style={{
-                            marginLeft: "0.25rem",
-                            fontSize: "0.72rem",
-                            color: "var(--ink-soft)",
-                          }}
-                        >
-                          {tx.currency}
-                        </span>
+                      </td>
+                      <td>
+                        <CurrencyBadge currency={tx.currency} />
                       </td>
                       <td
                         style={{
@@ -221,6 +417,7 @@ export default function HistoryPage() {
                         style={{
                           color: "var(--ink-soft)",
                           whiteSpace: "nowrap",
+                          fontSize: "0.8rem",
                         }}
                       >
                         {formatDate(tx.created_at)}

@@ -112,11 +112,11 @@ export default function UserLogsPage() {
                 </select>
               </label>
               <label>
-                <span>Actor ID</span>
+                <span>Search by Email or User ID</span>
                 <input
                   value={actorId}
                   onChange={(e) => setActorId(e.target.value)}
-                  placeholder="email or actor id"
+                  placeholder="user email or UUID"
                 />
               </label>
               <label>

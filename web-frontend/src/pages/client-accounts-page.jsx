@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import {
-  getAccounts,
+  getClients,
   updateClientRequest,
   deleteClientRequest,
 } from "../lib/api";
@@ -38,8 +38,8 @@ export default function ClientAccountsPage() {
     setLoading(true);
     setError("");
     try {
-      const res = await getAccounts(token);
-      setClients(res.clients || []);
+      const clientsRes = await getClients(token);
+      setClients(clientsRes.clients || []);
     } catch (err) {
       setError(err.message);
     } finally {
@@ -150,8 +150,6 @@ export default function ClientAccountsPage() {
                     <th>Name</th>
                     <th>Email</th>
                     <th>Account ID</th>
-                    <th>Balance (ALL)</th>
-                    <th>Currency</th>
                     <th>Created At</th>
                     <th>Actions</th>
                   </tr>
@@ -160,7 +158,7 @@ export default function ClientAccountsPage() {
                   {clients.length === 0 && (
                     <tr>
                       <td
-                        colSpan={7}
+                        colSpan={5}
                         style={{
                           textAlign: "center",
                           color: "var(--ink-soft)",
@@ -210,24 +208,6 @@ export default function ClientAccountsPage() {
                       </td>
                       <td data-label="Account ID">
                         <MonoCell value={client.account_id} />
-                      </td>
-                      <td data-label="Balance (ALL)">
-                        <span
-                          style={{
-                            fontFamily: "'JetBrains Mono', monospace",
-                            fontSize: "0.82rem",
-                            fontWeight: 600,
-                          }}
-                        >
-                          {client.balance != null ? client.balance : "—"}
-                        </span>
-                      </td>
-                      <td data-label="Currency">
-                        {client.currency ? (
-                          <span className="status-pill">{client.currency}</span>
-                        ) : (
-                          <span style={{ color: "var(--ink-soft)" }}>—</span>
-                        )}
                       </td>
                       <td data-label="Created At">
                         {formatDate(client.created_at)}

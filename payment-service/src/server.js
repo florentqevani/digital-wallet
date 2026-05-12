@@ -13,6 +13,11 @@ const { GetTransactionHistory } = require("./handlers/history");
 const { CreateCreditRequest } = require("./handlers/credit-request");
 const { GetCreditRequests } = require("./handlers/get-credit-request");
 const { RespondCreditRequest } = require("./handlers/credit-response");
+const {
+  RequestCurrency,
+  ListCurrencyRequests,
+  ReviewCurrencyRequest,
+} = require("./handlers/currency-requests");
 
 // Load proto
 const protoPath = path.join(
@@ -38,6 +43,9 @@ server.addService(paymentProto.PaymentService.service, {
   CreateCreditRequest,
   GetCreditRequests,
   RespondCreditRequest,
+  RequestCurrency,
+  ListCurrencyRequests,
+  ReviewCurrencyRequest,
 });
 
 server.bindAsync(

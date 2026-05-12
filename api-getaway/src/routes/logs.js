@@ -280,6 +280,39 @@ router.get("/all", validateJWT(["user", "superadmin"]), async (req, res) => {
   }
 });
 
+// GET /logs/clients
+// All client action logs, accessible to both user and superadmin roles.
+router.get(
+  "/clients",
+  validateJWT(["user", "superadmin"]),
+  async (req, res) => {
+    try {
+      const { actor_id, from, to, page = 1, limit = 50 } = req.query;
+
+      const response = await promisifyGRPC(
+        logClient.QueryLogs.bind(logClient),
+        {
+          actor_type: "client",
+          actor_id: actor_id || "",
+          action: "",
+          from: from ? Number.parseInt(from, 10) : 0,
+          to: to ? Number.parseInt(to, 10) : 0,
+          page: Number.parseInt(page, 10) || 1,
+          limit: Math.min(Number.parseInt(limit, 10) || 50, 100),
+        },
+      );
+
+      return res.json(response);
+    } catch (error) {
+      console.error("Error fetching client logs:", error.message);
+      return res.status(500).json({
+        error: "Failed to fetch client logs",
+        message: error.message,
+      });
+    }
+  },
+);
+
 // GET /logs/payments
 // Back-office: superadmin sees all clients' payment logs; user sees only their assigned clients.
 // Optional query params: actor_id, from, to, page, limit
@@ -308,6 +341,39 @@ router.get(
       console.error("Error fetching payment logs:", error.message);
       return res.status(500).json({
         error: "Failed to fetch payment logs",
+        message: error.message,
+      });
+    }
+  },
+);
+
+// GET /logs/accounts
+// Account operation logs (CREATE_ACCOUNT, DELETE_ACCOUNT, UPDATE_ACCOUNT_STATUS)
+router.get(
+  "/accounts",
+  validateJWT(["user", "superadmin"]),
+  async (req, res) => {
+    try {
+      const { actor_email, action, from, to, page = 1, limit = 50 } = req.query;
+
+      const response = await promisifyGRPC(
+        logClient.QueryLogs.bind(logClient),
+        {
+          actor_type: "account",
+          actor_email: actor_email || "",
+          action: action || "",
+          from: from ? Number.parseInt(from, 10) : 0,
+          to: to ? Number.parseInt(to, 10) : 0,
+          page: Number.parseInt(page, 10) || 1,
+          limit: Math.min(Number.parseInt(limit, 10) || 50, 100),
+        },
+      );
+
+      return res.json(response);
+    } catch (error) {
+      console.error("Error fetching account logs:", error.message);
+      return res.status(500).json({
+        error: "Failed to fetch account logs",
         message: error.message,
       });
     }

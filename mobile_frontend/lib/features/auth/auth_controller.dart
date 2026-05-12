@@ -136,6 +136,32 @@ class CreditRequest {
   }
 }
 
+class CurrencyAccount {
+  CurrencyAccount({
+    required this.id,
+    required this.clientId,
+    required this.currency,
+    required this.balance,
+    required this.status,
+  });
+
+  final String id;
+  final String clientId;
+  final String currency;
+  final double balance;
+  final String status;
+
+  factory CurrencyAccount.fromJson(Map<String, dynamic> json) {
+    return CurrencyAccount(
+      id: (json['id'] ?? '').toString(),
+      clientId: (json['client_id'] ?? '').toString(),
+      currency: (json['currency'] ?? 'ALL').toString(),
+      balance: ((json['balance'] ?? 0) as num).toDouble(),
+      status: (json['status'] ?? 'ACTIVE').toString(),
+    );
+  }
+}
+
 class AuthController extends ChangeNotifier {
   final ApiClient _apiClient = ApiClient();
   final SessionStore _sessionStore = SessionStore();
@@ -159,6 +185,8 @@ class AuthController extends ChangeNotifier {
   bool _requestsBusy = false;
   List<CreditRequest> _incomingRequests = <CreditRequest>[];
   List<CreditRequest> _outgoingRequests = <CreditRequest>[];
+  List<CurrencyAccount> _accounts = <CurrencyAccount>[];
+  String _selectedAccountId = '';
 
   bool get isBusy => _busy;
   bool get isLogsBusy => _logsBusy;
@@ -180,6 +208,31 @@ class AuthController extends ChangeNotifier {
       List.unmodifiable(_incomingRequests);
   List<CreditRequest> get outgoingRequests =>
       List.unmodifiable(_outgoingRequests);
+  List<CurrencyAccount> get accounts => List.unmodifiable(_accounts);
+  CurrencyAccount? get selectedAccount {
+    if (_accounts.isEmpty) {
+      return null;
+    }
+    for (final account in _accounts) {
+      if (account.id == _selectedAccountId) {
+        return account;
+      }
+    }
+    for (final account in _accounts) {
+      if (account.currency == _currency) {
+        return account;
+      }
+    }
+    return _accounts.first;
+  }
+
+  double get displayBalance => selectedAccount?.balance ?? _balance;
+  String get displayCurrency => selectedAccount?.currency ?? _currency;
+  List<String> get availableCurrenciesToRequest {
+    const supported = <String>{'USD', 'EUR', 'GBP'};
+    final existing = _accounts.map((account) => account.currency).toSet();
+    return supported.where((currency) => !existing.contains(currency)).toList();
+  }
 
   Future<void> loadSession() async {
     final saved = await _sessionStore.read();
@@ -196,6 +249,7 @@ class AuthController extends ChangeNotifier {
     notifyListeners();
     await fetchLogs(refresh: false);
     await fetchBalance();
+    unawaited(fetchAccounts());
     unawaited(fetchTransactionHistory());
     unawaited(fetchCreditRequests());
   }
@@ -302,6 +356,7 @@ class AuthController extends ChangeNotifier {
 
       notifyListeners();
       unawaited(fetchBalance());
+      unawaited(fetchAccounts());
       unawaited(fetchTransactionHistory());
       return true;
     } catch (e) {
@@ -323,6 +378,8 @@ class AuthController extends ChangeNotifier {
     _transactions = <TransactionEntry>[];
     _incomingRequests = <CreditRequest>[];
     _outgoingRequests = <CreditRequest>[];
+    _accounts = <CurrencyAccount>[];
+    _selectedAccountId = '';
     _logsPage = 1;
     _hasMoreLogs = true;
     _setError(null);
@@ -346,11 +403,69 @@ class AuthController extends ChangeNotifier {
     }
   }
 
+  Future<void> fetchAccounts() async {
+    if (_token.isEmpty) return;
+    try {
+      final response = await _apiClient.get('/api/accounts', token: _token);
+      final fetched = ((response['accounts'] ?? <dynamic>[]) as List<dynamic>)
+          .whereType<Map<String, dynamic>>()
+          .map(CurrencyAccount.fromJson)
+          .where((account) => account.status.toLowerCase() == 'active')
+          .toList();
+      _accounts = fetched;
+      if (_accounts.isEmpty) {
+        _selectedAccountId = '';
+      } else if (_accounts.every(
+        (account) => account.id != _selectedAccountId,
+      )) {
+        final preferred = selectedAccount;
+        _selectedAccountId = (preferred ?? _accounts.first).id;
+      }
+      notifyListeners();
+    } catch (e) {
+      if (e is ApiException && e.statusCode == 401) {
+        await logout();
+      }
+    }
+  }
+
+  void selectAccount(String accountId) {
+    if (accountId.isEmpty || accountId == _selectedAccountId) {
+      return;
+    }
+    _selectedAccountId = accountId;
+    notifyListeners();
+  }
+
+  Future<String?> requestCurrencyAccount(String currency) async {
+    if (_token.isEmpty) return 'Not authenticated';
+    try {
+      final response = await _apiClient.post(
+        '/api/accounts/request-currency',
+        body: {'requested_currency': currency},
+        token: _token,
+      );
+      if (response['success'] == true) {
+        unawaited(fetchAccounts());
+        return null;
+      }
+      return (response['message'] ?? 'Could not create currency account')
+          .toString();
+    } catch (e) {
+      if (e is ApiException && e.statusCode == 401) {
+        await logout();
+        return 'Session expired. Please log in again.';
+      }
+      return _messageFromError(e);
+    }
+  }
+
   /// Transfers [amount] to the client identified by [recipientEmail].
   /// Returns null on success (balance updated), or an error message string.
   Future<String?> transferFunds({
     required String recipientEmail,
     required double amount,
+    String currency = 'ALL',
     String note = '',
   }) async {
     if (_token.isEmpty) return 'Not authenticated';
@@ -362,6 +477,7 @@ class AuthController extends ChangeNotifier {
         body: {
           'to_email': recipientEmail.trim(),
           'amount': amount,
+          'currency': currency,
           'note': note,
         },
         token: _token,
@@ -369,6 +485,7 @@ class AuthController extends ChangeNotifier {
       if (response['success'] == true) {
         // Refresh balance after successful transfer
         await fetchBalance();
+        unawaited(fetchAccounts());
         unawaited(fetchTransactionHistory(refresh: true));
         return null;
       }
