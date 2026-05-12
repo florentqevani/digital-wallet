@@ -1,4 +1,4 @@
-const amqp = require("amqplib");
+const amqp = require(`amqplib`);
 
 const QUEUE = "account-events";
 const AMQP_URL = process.env.RABBITMQ_URL || "amqp://app:secret@rabbitmq:5672";
