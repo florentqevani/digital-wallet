@@ -2,11 +2,12 @@ import { useEffect, useMemo, useState } from "react";
 import { useAuth } from "../hooks/use-auth";
 import { getExchangeRates } from "../lib/api";
 
-const CURRENCIES = ["USD", "EUR", "GBP"];
+const CURRENCIES = ["ALL", "USD", "EUR", "GBP"];
 
-const CURRENCY_SYMBOLS = { USD: "$", EUR: "€", GBP: "£" };
+const CURRENCY_SYMBOLS = { ALL: "L", USD: "$", EUR: "€", GBP: "£" };
 
 const CURRENCY_PALETTE = {
+  ALL: { bg: "#dcfce7", color: "#166534" },
   USD: { bg: "#e0f2fe", color: "#0369a1" },
   EUR: { bg: "#ede9fe", color: "#6d28d9" },
   GBP: { bg: "#fef9c3", color: "#92400e" },
@@ -118,7 +119,15 @@ export default function ExchangePage() {
           <span className="section-eyebrow">Currency Converter</span>
           <h3>How much is it worth?</h3>
 
-          <div style={{ display: "flex", alignItems: "flex-end", gap: "0.75rem", flexWrap: "wrap", marginBottom: "1.5rem" }}>
+          <div
+            style={{
+              display: "flex",
+              alignItems: "flex-end",
+              gap: "0.75rem",
+              flexWrap: "wrap",
+              marginBottom: "1.5rem",
+            }}
+          >
             <label style={{ flex: "1 1 120px", minWidth: "100px" }}>
               Amount
               <input
@@ -163,7 +172,9 @@ export default function ExchangePage() {
           </div>
 
           {error && (
-            <p style={{ color: "var(--danger)", marginBottom: "1rem" }}>{error}</p>
+            <p style={{ color: "var(--danger)", marginBottom: "1rem" }}>
+              {error}
+            </p>
           )}
 
           {loading ? (
@@ -177,15 +188,42 @@ export default function ExchangePage() {
                 marginBottom: "1.25rem",
               }}
             >
-              <p style={{ margin: "0 0 0.25rem", fontSize: "0.8rem", color: "var(--accent)", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.05em" }}>
+              <p
+                style={{
+                  margin: "0 0 0.25rem",
+                  fontSize: "0.8rem",
+                  color: "var(--accent)",
+                  fontWeight: 600,
+                  textTransform: "uppercase",
+                  letterSpacing: "0.05em",
+                }}
+              >
                 Result
               </p>
-              <p style={{ margin: 0, fontSize: "1.6rem", fontWeight: 700, color: "var(--accent)", fontFamily: "var(--font-mono, monospace)" }}>
-                {CURRENCY_SYMBOLS[to]}{formatResult(converted)}{" "}
+              <p
+                style={{
+                  margin: 0,
+                  fontSize: "1.6rem",
+                  fontWeight: 700,
+                  color: "var(--accent)",
+                  fontFamily: "var(--font-mono, monospace)",
+                }}
+              >
+                {CURRENCY_SYMBOLS[to]}
+                {formatResult(converted)}{" "}
                 <span style={{ fontSize: "1rem", fontWeight: 600 }}>{to}</span>
               </p>
-              <p style={{ margin: "0.4rem 0 0", fontSize: "0.8rem", color: "var(--ink-soft)" }}>
-                {CURRENCY_SYMBOLS[from]}{formatResult(parsedAmount)} {from} × {formatRate(rate)} = {CURRENCY_SYMBOLS[to]}{formatResult(converted)} {to}
+              <p
+                style={{
+                  margin: "0.4rem 0 0",
+                  fontSize: "0.8rem",
+                  color: "var(--ink-soft)",
+                }}
+              >
+                {CURRENCY_SYMBOLS[from]}
+                {formatResult(parsedAmount)} {from} × {formatRate(rate)} ={" "}
+                {CURRENCY_SYMBOLS[to]}
+                {formatResult(converted)} {to}
               </p>
             </div>
           ) : null}
@@ -193,17 +231,35 @@ export default function ExchangePage() {
           {/* ── Reference rate table ───────────────────────────────── */}
           {!loading && allRates.length > 0 && (
             <>
-              <p style={{ fontSize: "0.78rem", color: "var(--ink-soft)", marginBottom: "0.5rem", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.05em" }}>
+              <p
+                style={{
+                  fontSize: "0.78rem",
+                  color: "var(--ink-soft)",
+                  marginBottom: "0.5rem",
+                  fontWeight: 600,
+                  textTransform: "uppercase",
+                  letterSpacing: "0.05em",
+                }}
+              >
                 All rates for 1 {from}
               </p>
-              <table style={{ width: "100%", borderCollapse: "collapse", marginBottom: "0.75rem" }}>
+              <table
+                style={{
+                  width: "100%",
+                  borderCollapse: "collapse",
+                  marginBottom: "0.75rem",
+                }}
+              >
                 <tbody>
                   {allRates.map((entry) => (
                     <tr
                       key={entry.currency}
                       style={{
                         borderBottom: "1px solid var(--line)",
-                        background: entry.currency === to ? "var(--accent-soft)" : "transparent",
+                        background:
+                          entry.currency === to
+                            ? "var(--accent-soft)"
+                            : "transparent",
                       }}
                     >
                       <td style={{ padding: "0.55rem 0.75rem" }}>
@@ -214,14 +270,28 @@ export default function ExchangePage() {
                             borderRadius: "6px",
                             fontSize: "0.78rem",
                             fontWeight: 700,
-                            background: CURRENCY_PALETTE[entry.currency]?.bg || "#f1f5f9",
-                            color: CURRENCY_PALETTE[entry.currency]?.color || "#475569",
+                            background:
+                              CURRENCY_PALETTE[entry.currency]?.bg || "#f1f5f9",
+                            color:
+                              CURRENCY_PALETTE[entry.currency]?.color ||
+                              "#475569",
                           }}
                         >
                           {entry.currency}
                         </span>
                       </td>
-                      <td style={{ textAlign: "right", padding: "0.55rem 0.75rem", fontFamily: "var(--font-mono, monospace)", fontWeight: entry.currency === to ? 700 : 500, color: entry.currency === to ? "var(--accent)" : "var(--ink)" }}>
+                      <td
+                        style={{
+                          textAlign: "right",
+                          padding: "0.55rem 0.75rem",
+                          fontFamily: "var(--font-mono, monospace)",
+                          fontWeight: entry.currency === to ? 700 : 500,
+                          color:
+                            entry.currency === to
+                              ? "var(--accent)"
+                              : "var(--ink)",
+                        }}
+                      >
                         {formatRate(entry.rate)}
                       </td>
                     </tr>
@@ -229,7 +299,13 @@ export default function ExchangePage() {
                 </tbody>
               </table>
 
-              <p style={{ fontSize: "0.72rem", color: stale ? "var(--warning)" : "var(--ink-soft)", margin: 0 }}>
+              <p
+                style={{
+                  fontSize: "0.72rem",
+                  color: stale ? "var(--warning)" : "var(--ink-soft)",
+                  margin: 0,
+                }}
+              >
                 {stale ? "⚠ Showing cached rates — " : "Rates updated at "}
                 {formatFetchedAt(fetchedAt)}
                 {" · ECB data, refreshes hourly"}
@@ -241,4 +317,3 @@ export default function ExchangePage() {
     </>
   );
 }
-

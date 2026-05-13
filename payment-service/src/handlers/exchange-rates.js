@@ -1,6 +1,6 @@
 // src/handlers/exchange-rates.js - Fetch live exchange rates from Frankfurter API
 
-const SUPPORTED_CURRENCIES = ["USD", "EUR", "GBP"];
+const SUPPORTED_CURRENCIES = ["USD", "EUR", "GBP", "ALL"];
 const ExchangeUrl = process.env.EXCHANGE_RATE_API_URL;
 const TTL_MS = 24 * 60 * 60 * 1000; // 1 day
 
