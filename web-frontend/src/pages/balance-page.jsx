@@ -121,50 +121,6 @@ export default function BalancePage() {
                 ✗ {error}
               </p>
             )}
-            {balanceInfo && (
-              <div
-                style={{
-                  marginTop: "0.2rem",
-                  padding: "0.72rem 0.88rem",
-                  borderRadius: "10px",
-                  background:
-                    "linear-gradient(180deg, #f3f8ff 0%, #ebf3ff 100%)",
-                  border: "1px solid #b9d0f5",
-                }}
-              >
-                <p
-                  style={{
-                    margin: 0,
-                    fontSize: "0.78rem",
-                    color: "var(--ink-soft)",
-                    fontWeight: 700,
-                    textTransform: "uppercase",
-                    letterSpacing: "0.05em",
-                  }}
-                >
-                  Available Balance
-                </p>
-                <strong
-                  style={{
-                    fontSize: "1.7rem",
-                    fontFamily: "'JetBrains Mono', monospace",
-                    color: "black",
-                  }}
-                >
-                  {formatAmount(balanceInfo.balance)}
-                </strong>
-                <span
-                  style={{
-                    marginLeft: "0.4rem",
-                    fontSize: "0.88rem",
-                    color: "var(--ink-soft)",
-                    fontWeight: 700,
-                  }}
-                >
-                  {balanceInfo.currency || "ALL"}
-                </span>
-              </div>
-            )}
           </form>
         </section>
 
