@@ -156,7 +156,7 @@ export default function BalancePage() {
                     bg: "#f1f5f9",
                     border: "#cbd5e1",
                     color: "#475569",
-                    label: "Legacy",
+                    label: "Albanian Lek",
                   },
                 };
                 const p = palette[acc.currency] || palette.ALL;
