@@ -200,7 +200,7 @@ services:
       HEALTH_PORT: 15055
       AUTH_DB_URL: postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/auth_db
       RABBITMQ_URL: amqp://${RABBITMQ_USER}:${RABBITMQ_PASS}@rabbitmq:5672
-      EXCHANGE_RATE_API_URL: https://api.frankfurter.app/latest
+      EXCHANGE_RATE_API_URL: https://v6.exchangerate-api.com/v6/92ef907499a04717d747d9be/latest
     depends_on:
       postgres:
         condition: service_healthy

@@ -1,23 +1,25 @@
-// src/handlers/exchange-rates.js - Fetch live exchange rates from Frankfurter API
+// src/handlers/exchange-rates.js - Fetch live exchange rates from exchangerate-api.com v6
 
 const SUPPORTED_CURRENCIES = ["USD", "EUR", "GBP", "ALL"];
-const ExchangeUrl = process.env.EXCHANGE_RATE_API_URL;
-const TTL_MS = 24 * 60 * 60 * 1000; // 1 day
+const ExchangeUrl = process.env.EXCHANGE_RATE_API_URL; // https://v6.exchangerate-api.com/v6/KEY/latest
+const TTL_MS = 60 * 60 * 1000; // 1 hour
 
 // Per-base-currency cache: { [base]: { rates: ExchangeRateEntry[], fetchedAt: number, expiresAt: number } }
 const cache = {};
 
 async function fetchRates(base) {
-  const targets = SUPPORTED_CURRENCIES.filter((c) => c !== base).join(",");
-  const response = await fetch(`${ExchangeUrl}?from=${base}&to=${targets}`);
+  const response = await fetch(`${ExchangeUrl}/${base}`);
   if (!response.ok) {
-    throw new Error(`Frankfurter API responded with ${response.status}`);
+    throw new Error(`Exchange API responded with ${response.status}`);
   }
   const data = await response.json();
-  return Object.entries(data.rates).map(([currency, rate]) => ({
-    currency,
-    rate,
-  }));
+  if (data.result !== "success") {
+    throw new Error(data["error-type"] || "Exchange API returned failure");
+  }
+  // Filter to only the currencies we support (excluding the base)
+  return Object.entries(data.conversion_rates)
+    .filter(([currency]) => SUPPORTED_CURRENCIES.includes(currency) && currency !== base)
+    .map(([currency, rate]) => ({ currency, rate }));
 }
 
 async function GetExchangeRates(call, callback) {
