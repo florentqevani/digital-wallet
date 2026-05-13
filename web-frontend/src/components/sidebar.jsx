@@ -53,6 +53,12 @@ const NAV_GROUPS = [
         icon: "↻",
         roles: ["user", "superadmin"],
       },
+      {
+        to: "/payments/exchange-rates",
+        label: "Exchange Rates",
+        icon: "⇄",
+        roles: ["user", "superadmin"],
+      },
     ],
   },
   {

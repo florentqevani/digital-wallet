@@ -11,7 +11,8 @@ service PaymentService {
   rpc RespondCreditRequest (RespondCreditRequestRequest) returns (RespondCreditRequestResponse);
   rpc RequestCurrency      (RequestCurrencyRequest)      returns (RequestCurrencyResponse);
   rpc ListCurrencyRequests    (ListCurrencyRequestsRequest)    returns (ListCurrencyRequestsResponse);
-  rpc ReviewCurrencyRequest       (ReviewCurrencyRequestRequest)       returns (SimpleResponse);
+  rpc ReviewCurrencyRequest (ReviewCurrencyRequestRequest) returns (SimpleResponse);
+  rpc GetExchangeRates      (GetExchangeRatesRequest)      returns (GetExchangeRatesResponse);
 }
 
 // ── Transfer ─────────────────────────────────────────────────────────────────
@@ -193,4 +194,23 @@ message ReviewCurrencyRequestRequest {
 message SimpleResponse {
   bool success = 1;
   string message = 2;
+}
+
+// ── Exchange rates ───────────────────────────────────────────────────────────
+
+message ExchangeRateEntry {
+  string currency = 1;
+  double rate     = 2;
+}
+
+message GetExchangeRatesRequest {
+  string base_currency = 1;
+}
+
+message GetExchangeRatesResponse {
+  bool                       success       = 1;
+  string                     base_currency = 2;
+  repeated ExchangeRateEntry rates         = 3;
+  int64                      fetched_at    = 4;
+  string                     message       = 5;
 }

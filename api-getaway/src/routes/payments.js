@@ -223,12 +223,10 @@ router.post("/credit-request", validateJWT(["client"]), async (req, res) => {
     typeof payer_email !== "string" ||
     !payer_email.includes("@")
   ) {
-    return res
-      .status(400)
-      .json({
-        success: false,
-        message: "payer_email must be a valid email address",
-      });
+    return res.status(400).json({
+      success: false,
+      message: "payer_email must be a valid email address",
+    });
   }
   if (isNaN(amount) || amount <= 0) {
     return res
@@ -276,14 +274,12 @@ router.get("/credit-requests", validateJWT(["client"]), async (req, res) => {
     res.json(response);
   } catch (err) {
     console.error("❌ GetCreditRequests error:", err.message);
-    res
-      .status(502)
-      .json({
-        success: false,
-        requests: [],
-        total: 0,
-        message: "Could not retrieve credit requests",
-      });
+    res.status(502).json({
+      success: false,
+      requests: [],
+      total: 0,
+      message: "Could not retrieve credit requests",
+    });
   }
 });
 
@@ -311,12 +307,33 @@ router.post(
       res.status(response.success ? 200 : 400).json(response);
     } catch (err) {
       console.error("❌ RespondCreditRequest error:", err.message);
-      res
-        .status(502)
-        .json({
-          success: false,
-          message: "Could not respond to credit request",
-        });
+      res.status(502).json({
+        success: false,
+        message: "Could not respond to credit request",
+      });
+    }
+  },
+);
+
+router.get(
+  "/exchange-rates",
+  validateJWT(["client", "user", "superadmin"]),
+  async (req, res) => {
+    try {
+      const response = await promisifyGRPC(
+        paymentClient.GetExchangeRates.bind(paymentClient),
+        { base_currency: req.query.base || req.query.base_currency || "USD" },
+      );
+      res.json(response);
+    } catch (err) {
+      console.error("❌ GetExchangeRates error:", err.message);
+      res.status(502).json({
+        success: false,
+        base_currency: req.query.base_currency || "USD",
+        rates: [],
+        fetched_at: 0,
+        message: "Could not retrieve exchange rates",
+      });
     }
   },
 );

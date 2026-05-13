@@ -192,6 +192,14 @@ export async function getTransactionHistory(
   );
 }
 
+export async function getExchangeRates(token, base = 'USD') {
+  return apiRequest(
+    `/api/payments/exchange-rates?base=${encodeURIComponent(base)}`,
+    { method: 'GET' },
+    token,
+  );
+}
+
 // Account service
 export async function listAccounts(token, clientId = null) {
   const qs = clientId ? `?client_id=${encodeURIComponent(clientId)}` : "";

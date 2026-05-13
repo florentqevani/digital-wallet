@@ -15,6 +15,7 @@ import ProtectedRoute from "./components/protected-route";
 import AppShell from "./components/app-shell";
 import AccountsPage from "./pages/accounts";
 import AccountLogsPage from "./pages/account-logs";
+import ExchangeRatesPage from "./pages/exchange";
 
 export default function App() {
   return (
@@ -55,6 +56,7 @@ export default function App() {
         <Route path="/payments/topup" element={<TopUpPage />} />
         <Route path="/payments/balance" element={<BalancePage />} />
         <Route path="/payments/history" element={<HistoryPage />} />
+        <Route path="/payments/exchange-rates" element={<ExchangeRatesPage />} />
 
         {/* Accounts */}
         <Route path="/accounts" element={<AccountsPage />} />

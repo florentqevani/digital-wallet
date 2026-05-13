@@ -18,6 +18,7 @@ const {
   ListCurrencyRequests,
   ReviewCurrencyRequest,
 } = require("./handlers/currency-requests");
+const { GetExchangeRates } = require("./handlers/exchange-rates");
 
 // Load proto
 const protoPath = path.join(
@@ -46,6 +47,7 @@ server.addService(paymentProto.PaymentService.service, {
   RequestCurrency,
   ListCurrencyRequests,
   ReviewCurrencyRequest,
+  GetExchangeRates,
 });
 
 server.bindAsync(
