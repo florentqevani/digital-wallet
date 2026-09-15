@@ -139,8 +139,9 @@ class _RegisterPageState extends State<RegisterPage> {
                               prefixIcon: Icon(Icons.badge_outlined),
                             ),
                             validator: (value) {
-                              if ((value?.trim() ?? '').isEmpty)
+                              if ((value?.trim() ?? '').isEmpty) {
                                 return 'Full name is required';
+                              }
                               return null;
                             },
                           ),
@@ -156,8 +157,9 @@ class _RegisterPageState extends State<RegisterPage> {
                             validator: (value) {
                               final input = value?.trim() ?? '';
                               if (input.isEmpty) return 'Email is required';
-                              if (!input.contains('@'))
+                              if (!input.contains('@')) {
                                 return 'Enter a valid email';
+                              }
                               return null;
                             },
                           ),
@@ -183,8 +185,9 @@ class _RegisterPageState extends State<RegisterPage> {
                               ),
                             ),
                             validator: (value) {
-                              if ((value ?? '').length < 6)
+                              if ((value ?? '').length < 6) {
                                 return 'Password must be at least 6 characters';
+                              }
                               return null;
                             },
                           ),

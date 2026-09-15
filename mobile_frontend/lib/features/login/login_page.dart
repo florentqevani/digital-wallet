@@ -136,8 +136,9 @@ class _LoginPageState extends State<LoginPage> {
                             validator: (value) {
                               final input = value?.trim() ?? '';
                               if (input.isEmpty) return 'Email is required';
-                              if (!input.contains('@'))
+                              if (!input.contains('@')) {
                                 return 'Enter a valid email';
+                              }
                               return null;
                             },
                           ),
@@ -163,8 +164,9 @@ class _LoginPageState extends State<LoginPage> {
                               ),
                             ),
                             validator: (value) {
-                              if ((value ?? '').isEmpty)
+                              if ((value ?? '').isEmpty) {
                                 return 'Password is required';
+                              }
                               return null;
                             },
                           ),
